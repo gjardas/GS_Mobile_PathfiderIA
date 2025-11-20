@@ -16,7 +16,6 @@ export const AuthProvider = ({ children }) => {
 
         if (storedUser && storedToken) {
           setUser(JSON.parse(storedUser));
-          // Restaura o token no header do Axios
           api.defaults.headers.common[
             "Authorization"
           ] = `Bearer ${storedToken}`;
@@ -31,32 +30,30 @@ export const AuthProvider = ({ children }) => {
     loadStorageData();
   }, []);
 
-  // --- LOGIN (POST /auth/login) ---
+  // --- LOGIN ---
   async function signIn(email, password) {
     try {
-      // O Java espera: { "email": "...", "senha": "..." }
+      // CORREÇÃO: Forçar email minúsculo
+      const normalizedEmail = email.toLowerCase().trim();
+
       const response = await api.post("/auth/login", {
-        email: email,
-        senha: password, // Mapeando 'password' do JS para 'senha' do Java
+        email: normalizedEmail,
+        senha: password,
       });
 
-      // O Java retorna: { "token": "eyJ..." }
       const { token } = response.data;
 
-      // Criamos o objeto de usuário para uso interno do app
       const userData = {
-        email: email,
-        name: "Usuário", // O endpoint de login não retorna o nome, usamos placeholder
+        email: normalizedEmail,
+        name: "Usuário",
         token: token,
       };
 
       setUser(userData);
 
-      // Persistência
       await AsyncStorage.setItem("@App:token", token);
       await AsyncStorage.setItem("@App:user", JSON.stringify(userData));
 
-      // Atualiza o Axios para chamadas futuras
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     } catch (error) {
       console.error("Erro Login:", error.response?.data || error.message);
@@ -64,18 +61,23 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // --- REGISTRO (POST /auth/register) ---
+  // --- REGISTRO ---
   async function signUp(name, email, password) {
     try {
-      // O Java espera: { "nome": "...", "email": "...", "senha": "..." }
+      // CORREÇÃO: Forçar email minúsculo
+      const normalizedEmail = email.toLowerCase().trim();
+
       await api.post("/auth/register", {
         nome: name,
-        email: email,
-        senha: password, // Mapeando 'password' para 'senha'
+        email: normalizedEmail,
+        senha: password,
       });
-      // Retorna sucesso (200 OK)
     } catch (error) {
       console.error("Erro Registro:", error.response?.data);
+
+      if (error.response?.data?.senha) {
+        throw new Error(error.response.data.senha);
+      }
       throw new Error("Não foi possível criar a conta. Verifique os dados.");
     }
   }

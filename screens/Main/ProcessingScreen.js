@@ -49,7 +49,6 @@ export default function ProcessingScreen({ navigation, route }) {
   const [statusText, setStatusText] = useState("Inicializando...");
 
   // Dados Mockados de Segurança (Caso o Backend falhe ou seja demo)
-  // Isso garante que você sempre terá algo para mostrar no vídeo
   const MOCK_SUCCESS_DATA = {
     tituloObjetivo: "Especialista Cloud (Demo)",
     dadosJsonIA: {
@@ -81,7 +80,6 @@ export default function ProcessingScreen({ navigation, route }) {
   useEffect(() => {
     console.log("CONSOLE LOG: Iniciando processamento para ID:", pathId);
 
-    // Animação de textos de status para dar feedback visual ao usuário
     const steps = [
       "Analisando seu perfil atual...",
       "Mapeando gaps de competência...",
@@ -97,7 +95,6 @@ export default function ProcessingScreen({ navigation, route }) {
 
     let pollingInterval;
 
-    // Função auxiliar para finalizar e navegar para o resultado
     const finishProcess = (data) => {
       clearInterval(pollingInterval);
       clearInterval(textInterval);
@@ -106,7 +103,6 @@ export default function ProcessingScreen({ navigation, route }) {
 
     // Lógica Principal de Decisão
     if (isDemo || (typeof pathId === "string" && pathId.startsWith("DEMO"))) {
-      // 1. MODO DEMO: Se veio do CareerGoalScreen com flag de demo
       console.log("CONSOLE LOG: Modo Demo ativado. Simulando espera...");
       setTimeout(() => finishProcess(MOCK_SUCCESS_DATA), 5000);
     } else {
@@ -118,7 +114,6 @@ export default function ProcessingScreen({ navigation, route }) {
           const data = response.data;
           console.log("CONSOLE LOG: Status recebido:", data?.status);
 
-          // Verifica se está concluída ou se já tem o JSON da IA preenchido
           if (
             data.status === "CONCLUIDA" ||
             (data.dadosJsonIA && String(data.dadosJsonIA).length > 10)
@@ -132,19 +127,18 @@ export default function ProcessingScreen({ navigation, route }) {
         }
       };
 
-      pollingInterval = setInterval(checkStatus, 3000); // Verifica a cada 3 segundos
+      pollingInterval = setInterval(checkStatus, 3000);
 
-      // Timeout de segurança (15s): Se o Java não responder nesse tempo,
-      // finaliza com Mock para o vídeo de apresentação não falhar.
+      // Timeout de segurança AUMENTADO (30s)
+      // Se o Java não responder nesse tempo, finaliza com Mock.
       setTimeout(() => {
         console.log(
-          "CONSOLE LOG: Timeout do Java. Ativando fallback de segurança."
+          "CONSOLE LOG: Timeout do Java (30s). Ativando fallback de segurança."
         );
         finishProcess(MOCK_SUCCESS_DATA);
-      }, 15000);
+      }, 30000); // Aumentado de 15000 para 30000 ms
     }
 
-    // Limpeza dos intervalos ao sair da tela
     return () => {
       clearInterval(pollingInterval);
       clearInterval(textInterval);

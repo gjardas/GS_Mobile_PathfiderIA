@@ -7,10 +7,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"; // Removido Alert
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
 import api from "../../api/apiService";
-import { useAlert } from "../../context/AlertContext"; // Import Hook
+import { useAlert } from "../../context/AlertContext";
+import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
@@ -88,7 +89,8 @@ const createStyles = (theme) =>
 export default function CareerGoalScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { showAlert } = useAlert(); // Use Hook
+  const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
@@ -105,52 +107,57 @@ export default function CareerGoalScreen({ navigation }) {
     console.log("CONSOLE LOG: Iniciando fluxo de criação...");
 
     try {
-      // 1. Tenta pegar o cargo atual do perfil salvo localmente
       const profileJson = await AsyncStorage.getItem("@App:profile");
       const profile = profileJson ? JSON.parse(profileJson) : {};
       const currentRole = profile.jobTitle || "Profissional em transição";
 
-      // 2. Prepara o JSON para o Java
       const payload = {
         cargoAtual: currentRole,
         tituloObjetivo: goal,
       };
 
-      // 3. Envia requisição de criação (POST)
+      // 1. Envia requisição POST para criar
       const responsePost = await api.post("/api/v1/learning-paths", payload);
-      console.log("CONSOLE LOG: POST status:", responsePost.status);
 
-      // Aceita 200, 201 ou 202 como sucesso
       if ([200, 201, 202].includes(responsePost.status)) {
-        // --- TRUQUE PARA PEGAR O ID ---
-        // Como o POST retorna Void, buscamos a última trilha criada (ordenada por ID DESC)
         console.log("CONSOLE LOG: Buscando ID da trilha recém-criada...");
-
-        // Aguarda 1.5 segundos para garantir que o banco processou a inserção
+        // Aguarda o banco processar
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         try {
+          // 2. Busca a última trilha criada (GET)
           const responseGet = await api.get("/api/v1/learning-paths?size=1");
-
-          // A resposta do Spring Pageable geralmente vem em .content
           const latestPath = responseGet.data?.content
             ? responseGet.data.content[0]
             : null;
 
           if (latestPath && latestPath.idTrilha) {
             console.log("CONSOLE LOG: ID encontrado:", latestPath.idTrilha);
-            // Navega para o processamento com o ID real
+
+            // 3. VINCULAR AO USUÁRIO (Salvar ID localmente)
+            if (user && user.email) {
+              const safeEmail = user.email.toLowerCase().trim();
+              const storageKey = `@App:myPathIds:${safeEmail}`;
+
+              const storedIds = await AsyncStorage.getItem(storageKey);
+              const myIds = storedIds ? JSON.parse(storedIds) : [];
+
+              // Adiciona ID se não existir
+              if (!myIds.includes(latestPath.idTrilha)) {
+                myIds.push(latestPath.idTrilha);
+                await AsyncStorage.setItem(storageKey, JSON.stringify(myIds));
+                console.log("CONSOLE LOG: ID vinculado ao usuário:", safeEmail);
+              }
+            }
+
+            // 4. Navega para monitorização
             navigation.replace("Processing", { pathId: latestPath.idTrilha });
           } else {
-            // Fallback: Se não encontrar, vai para modo Demo para não travar
-            console.log(
-              "CONSOLE LOG: ID não encontrado na listagem. Usando modo Demo."
-            );
+            // Fallback para Demo
             navigation.replace("Processing", { isDemo: true });
           }
         } catch (getError) {
           console.log("Erro ao buscar ID:", getError);
-          // Se der erro no GET, vai para o Dashboard avisando que iniciou
           showAlert(
             "Processamento Iniciado",
             "Sua trilha está sendo gerada! Você poderá vê-la na lista em breve.",
@@ -192,7 +199,7 @@ export default function CareerGoalScreen({ navigation }) {
       <View style={styles.header}>
         <Text style={styles.title}>Defina seu Objetivo</Text>
         <Text style={styles.subtitle}>
-          Para onde você quer levar sua carreira? (Ponto B)
+          Para onde quer levar a sua carreira? (Ponto B)
         </Text>
       </View>
 
@@ -207,7 +214,8 @@ export default function CareerGoalScreen({ navigation }) {
           autoFocus
         />
         <Text style={styles.helperText}>
-          Nossa IA analisará seu perfil atual para traçar a rota mais eficiente.
+          A nossa IA analisará o seu perfil atual para traçar a rota mais
+          eficiente.
         </Text>
       </View>
 
