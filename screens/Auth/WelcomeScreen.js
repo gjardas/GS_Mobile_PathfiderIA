@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,10 +9,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-// Importações de SVG
+} from "react-native"; // Removido Alert
 import Svg, { Circle, Polygon } from "react-native-svg";
-// Importações de Contexto
+import { useAlert } from "../../context/AlertContext"; // 1. Importar Hook
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -41,7 +39,6 @@ const createStyles = (theme) =>
       justifyContent: "center",
       alignItems: "center",
       marginBottom: theme.spacing.m,
-      // Sombra suave
       shadowColor: theme.colors.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -125,14 +122,14 @@ export default function WelcomeScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { signIn, signUp } = useAuth();
+  const { showAlert } = useAlert(); // 2. Usar Hook
 
-  const [activeTab, setActiveTab] = useState("login"); // 'login' ou 'register'
+  const [activeTab, setActiveTab] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Função para validar a senha conforme regras do Java
   const validatePassword = (pass) => {
     const hasUpperCase = /[A-Z]/.test(pass);
     const hasNumber = /[0-9]/.test(pass);
@@ -150,9 +147,10 @@ export default function WelcomeScreen() {
   };
 
   const handleSubmit = async () => {
-    // Validação básica de campos vazios
     if (!email || !password || (activeTab === "register" && !name)) {
-      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
+      showAlert("Atenção", "Por favor, preencha todos os campos.", {
+        style: "default",
+      });
       return;
     }
 
@@ -160,33 +158,32 @@ export default function WelcomeScreen() {
 
     try {
       if (activeTab === "login") {
-        // --- LOGIN ---
         await signIn(email, password);
-        // Se der sucesso, o AuthContext muda o estado e a tela troca sozinha
       } else {
-        // --- REGISTRO ---
-
-        // 1. Valida Senha Forte (Regra do Java)
         const passwordError = validatePassword(password);
         if (passwordError) {
-          Alert.alert("Senha Fraca", passwordError);
+          showAlert("Senha Fraca", passwordError, { style: "destructive" });
           setIsLoading(false);
           return;
         }
 
-        // 2. Chama API de Registro
         await signUp(name, email, password);
 
-        Alert.alert(
+        showAlert(
           "Sucesso",
-          "Conta criada com sucesso! Faça login para continuar."
+          "Conta criada com sucesso! Faça login para continuar.",
+          {
+            onPress: () => {
+              setActiveTab("login");
+              setPassword("");
+            },
+          }
         );
-        setActiveTab("login"); // Muda a aba para login automaticamente
-        // Opcional: Limpar campos de senha
-        setPassword("");
       }
     } catch (error) {
-      Alert.alert("Erro", error.message || "Ocorreu um erro inesperado.");
+      showAlert("Erro", error.message || "Ocorreu um erro inesperado.", {
+        style: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -198,7 +195,6 @@ export default function WelcomeScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.content}>
-        {/* HEADER COM ÍCONE SVG */}
         <View style={styles.header}>
           <View style={styles.logoCircle}>
             <Svg
@@ -219,7 +215,6 @@ export default function WelcomeScreen() {
           <Text style={styles.subtitle}>Seu GPS de Carreira Inteligente</Text>
         </View>
 
-        {/* ABAS (LOGIN / REGISTER) */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[
@@ -255,7 +250,6 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* FORMULÁRIO */}
         <View style={styles.form}>
           <Text
             style={{

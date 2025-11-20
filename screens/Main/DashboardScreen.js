@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"; // <--- Import adicionado
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
@@ -113,6 +113,7 @@ const createStyles = (theme) =>
       color: theme.colors.mutedForeground,
       fontSize: 14,
     },
+    // Card de Trilha Melhorado
     pathCard: {
       backgroundColor: theme.colors.card,
       padding: theme.spacing.m,
@@ -120,19 +121,35 @@ const createStyles = (theme) =>
       marginBottom: theme.spacing.s,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      flexDirection: "column", // Mudado para column para caber a barra
+    },
+    pathHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
+      marginBottom: 8,
     },
     pathTitle: {
       fontSize: 16,
       fontWeight: "bold",
       color: theme.colors.foreground,
+      flex: 1,
     },
     pathStatus: {
       fontSize: 12,
-      marginTop: 4,
-      fontWeight: "500",
+      fontWeight: "600",
+    },
+    // Barra de progresso mini
+    miniProgressContainer: {
+      height: 4,
+      backgroundColor: theme.colors.muted,
+      borderRadius: 2,
+      width: "100%",
+      overflow: "hidden",
+    },
+    miniProgressBar: {
+      height: "100%",
+      backgroundColor: theme.colors.success || "#10B981",
     },
     emptyState: {
       padding: theme.spacing.xl,
@@ -151,14 +168,12 @@ export default function DashboardScreen({ navigation }) {
   const styles = createStyles(theme);
   const { user, signOut } = useAuth();
 
-  // Estado local para o nome, inicializado com o do login
   const [displayName, setDisplayName] = useState(user?.name || "Profissional");
   const [recentPaths, setRecentPaths] = useState([]);
   const [loadingPaths, setLoadingPaths] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      // Carrega trilhas e o perfil atualizado ao focar na tela
       loadData();
     }, [])
   );
@@ -166,19 +181,78 @@ export default function DashboardScreen({ navigation }) {
   const loadData = async () => {
     setLoadingPaths(true);
     try {
-      // 1. Atualiza Nome do Perfil
+      // 1. Perfil
       const storedProfile = await AsyncStorage.getItem("@App:profile");
       if (storedProfile) {
         const profileData = JSON.parse(storedProfile);
-        if (profileData.name) {
-          setDisplayName(profileData.name);
-        }
+        if (profileData.name) setDisplayName(profileData.name);
       }
 
-      // 2. Carrega Trilhas da API
+      // 2. API: Buscar Trilhas
       const response = await api.get("/api/v1/learning-paths");
-      const paths = response.data?.content || [];
-      setRecentPaths(paths);
+      const apiPaths = response.data?.content || [];
+
+      // 3. Processar Progresso Local para cada trilha
+      const enrichedPaths = await Promise.all(
+        apiPaths.map(async (path) => {
+          // Se ainda está processando no backend, não tem progresso
+          if (path.status !== "CONCLUIDA") {
+            return {
+              ...path,
+              userProgress: 0,
+              displayStatus: "Processando IA...",
+            };
+          }
+
+          try {
+            // Conta total de passos
+            let totalSteps = 0;
+            if (path.dadosJsonIA) {
+              let raw = path.dadosJsonIA;
+              if (typeof raw === "string") {
+                raw = raw
+                  .replace(/```json/g, "")
+                  .replace(/```/g, "")
+                  .trim();
+                try {
+                  raw = JSON.parse(raw);
+                } catch (e) {}
+              }
+              if (Array.isArray(raw)) totalSteps = raw.length;
+              else if (typeof raw === "object") {
+                const list = raw.steps || raw.trilha || raw.passos || [];
+                totalSteps = list.length;
+              }
+            }
+
+            // Conta passos concluídos (salvos no AsyncStorage na LearningPathScreen)
+            const savedProgress = await AsyncStorage.getItem(
+              `@PathProgress:${path.idTrilha}`
+            );
+            const completedSet = savedProgress ? JSON.parse(savedProgress) : [];
+            const completedCount = completedSet.length;
+
+            // Calcula %
+            const percent =
+              totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
+
+            let statusText = "Não Iniciada";
+            if (percent === 100) statusText = "🏆 Finalizada";
+            else if (percent > 0)
+              statusText = `Em Andamento (${Math.round(percent)}%)`;
+
+            return {
+              ...path,
+              userProgress: percent,
+              displayStatus: statusText,
+            };
+          } catch (e) {
+            return { ...path, userProgress: 0, displayStatus: "Erro ao ler" };
+          }
+        })
+      );
+
+      setRecentPaths(enrichedPaths);
     } catch (error) {
       console.log("Erro ao carregar dados:", error);
     } finally {
@@ -193,17 +267,12 @@ export default function DashboardScreen({ navigation }) {
     ]);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "CONCLUIDA":
-        return theme.colors.success || "#10B981";
-      case "PROCESSANDO":
-        return "#F59E0B";
-      case "ERRO":
-        return theme.colors.destructive;
-      default:
-        return theme.colors.mutedForeground;
-    }
+  const getStatusColor = (path) => {
+    // Cor baseada no status da IA ou do Usuário
+    if (path.status === "PROCESSANDO") return "#F59E0B"; // Laranja
+    if (path.userProgress === 100) return theme.colors.success || "#10B981"; // Verde
+    if (path.userProgress > 0) return theme.colors.primary; // Azul
+    return theme.colors.mutedForeground; // Cinza
   };
 
   return (
@@ -211,7 +280,6 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.header}>
         <View>
           <Text style={styles.greetingLabel}>Bem-vindo,</Text>
-          {/* Usa o estado local displayName que atualiza ao voltar do perfil */}
           <Text style={styles.username}>{displayName}</Text>
         </View>
 
@@ -222,7 +290,6 @@ export default function DashboardScreen({ navigation }) {
           >
             <Text style={styles.aboutIcon}>i</Text>
           </TouchableOpacity>
-
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={styles.logoutText}>SAIR</Text>
           </TouchableOpacity>
@@ -289,7 +356,7 @@ export default function DashboardScreen({ navigation }) {
           </Svg>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Trilhas Recentes</Text>
+        <Text style={styles.sectionTitle}>Minhas Trilhas</Text>
 
         {loadingPaths ? (
           <ActivityIndicator
@@ -312,27 +379,37 @@ export default function DashboardScreen({ navigation }) {
                 }
               }}
             >
-              <View style={{ flex: 1 }}>
+              <View style={styles.pathHeader}>
                 <Text style={styles.pathTitle}>{path.tituloObjetivo}</Text>
                 <Text
-                  style={[
-                    styles.pathStatus,
-                    { color: getStatusColor(path.status) },
-                  ]}
+                  style={[styles.pathStatus, { color: getStatusColor(path) }]}
                 >
-                  {path.status}
+                  {path.displayStatus}
                 </Text>
+                <Svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={theme.colors.mutedForeground}
+                  strokeWidth="2"
+                  style={{ marginLeft: 8 }}
+                >
+                  <Path d="m9 18 6-6-6-6" />
+                </Svg>
               </View>
-              <Svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={theme.colors.mutedForeground}
-                strokeWidth="2"
-              >
-                <Path d="m9 18 6-6-6-6" />
-              </Svg>
+
+              {/* Barra de Progresso no Card */}
+              {path.status === "CONCLUIDA" && (
+                <View style={styles.miniProgressContainer}>
+                  <View
+                    style={[
+                      styles.miniProgressBar,
+                      { width: `${path.userProgress || 0}%` },
+                    ]}
+                  />
+                </View>
+              )}
             </TouchableOpacity>
           ))
         ) : (
@@ -344,7 +421,7 @@ export default function DashboardScreen({ navigation }) {
               }}
             >
               Você ainda não gerou nenhuma trilha.
-              {"\n"}Toque no cartão azul para começar!
+              {"\n"}Comece agora!
             </Text>
           </View>
         )}

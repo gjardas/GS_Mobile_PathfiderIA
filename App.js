@@ -1,6 +1,7 @@
 import { NavigationContainer } from "@react-navigation/native";
 import "react-native-gesture-handler";
-import { AuthProvider } from "./context/AuthContext"; // Importando AuthProvider
+import { AlertProvider } from "./context/AlertContext"; // 1. Importar
+import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import AppNavigator from "./navigation/AppNavigator";
 
@@ -9,7 +10,9 @@ export default function App() {
     <NavigationContainer>
       <ThemeProvider>
         <AuthProvider>
-          <AppNavigator />
+          <AlertProvider>
+            <AppNavigator />
+          </AlertProvider>
         </AuthProvider>
       </ThemeProvider>
     </NavigationContainer>

@@ -2,15 +2,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
+} from "react-native"; // Removido Alert
 import Svg, { Path } from "react-native-svg";
 import api from "../../api/apiService";
+import { useAlert } from "../../context/AlertContext"; // Import Hook
 import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
@@ -88,13 +88,16 @@ const createStyles = (theme) =>
 export default function CareerGoalScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const { showAlert } = useAlert(); // Use Hook
 
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleGenerate = async () => {
     if (!goal.trim()) {
-      Alert.alert("Atenção", "Por favor, defina um objetivo de carreira.");
+      showAlert("Atenção", "Por favor, defina um objetivo de carreira.", {
+        style: "default",
+      });
       return;
     }
 
@@ -148,16 +151,18 @@ export default function CareerGoalScreen({ navigation }) {
         } catch (getError) {
           console.log("Erro ao buscar ID:", getError);
           // Se der erro no GET, vai para o Dashboard avisando que iniciou
-          Alert.alert(
+          showAlert(
             "Processamento Iniciado",
-            "Sua trilha está sendo gerada! Verifique em breve."
+            "Sua trilha está sendo gerada! Você poderá vê-la na lista em breve.",
+            { onPress: () => navigation.navigate("Dashboard") }
           );
-          navigation.navigate("Dashboard");
         }
       }
     } catch (error) {
       console.error("CONSOLE LOG ERRO:", error);
-      Alert.alert("Erro", "Não foi possível conectar com o servidor.");
+      showAlert("Erro", "Não foi possível conectar com o servidor.", {
+        style: "destructive",
+      });
     } finally {
       setLoading(false);
     }

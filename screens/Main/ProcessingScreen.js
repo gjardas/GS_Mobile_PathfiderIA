@@ -44,12 +44,44 @@ const createStyles = (theme) =>
 export default function ProcessingScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { pathId } = route.params || {}; // Proteção caso venha sem params
+  const { pathId, isDemo } = route.params || {};
 
   const [statusText, setStatusText] = useState("Inicializando...");
 
+  // Dados Mockados de Segurança (Caso o Backend falhe ou seja demo)
+  // Isso garante que você sempre terá algo para mostrar no vídeo
+  const MOCK_SUCCESS_DATA = {
+    tituloObjetivo: "Especialista Cloud (Demo)",
+    dadosJsonIA: {
+      steps: [
+        {
+          title: "Fundamentos de Cloud",
+          description: "Conceitos básicos de AWS e Azure.",
+          type: "Curso",
+        },
+        {
+          title: "Certificação AWS Practitioner",
+          description: "Preparação e exame oficial.",
+          type: "Certificação",
+        },
+        {
+          title: "Docker e Kubernetes",
+          description: "Orquestração de containers avançada.",
+          type: "Projeto Prático",
+        },
+        {
+          title: "Terraform",
+          description: "Infraestrutura como código (IaC).",
+          type: "Curso",
+        },
+      ],
+    },
+  };
+
   useEffect(() => {
-    // Animação de texto simples
+    console.log("CONSOLE LOG: Iniciando processamento para ID:", pathId);
+
+    // Animação de textos de status para dar feedback visual ao usuário
     const steps = [
       "Analisando seu perfil atual...",
       "Mapeando gaps de competência...",
@@ -61,34 +93,58 @@ export default function ProcessingScreen({ navigation, route }) {
     const textInterval = setInterval(() => {
       setStatusText(steps[stepIndex]);
       stepIndex = (stepIndex + 1) % steps.length;
-    }, 2500);
+    }, 2000);
 
-    // POLLING: Verifica status no backend a cada 3s
-    const checkStatus = async () => {
-      if (!pathId) return; // Se não tem ID, não tem o que checar
+    let pollingInterval;
 
-      try {
-        const response = await api.get(`/api/v1/learning-paths/${pathId}`);
-        const data = response.data;
-
-        // Ajuste conforme o retorno do seu Java.
-        // Geralmente verificamos se o status é 'CONCLUIDA' ou se o JSON da IA já existe.
-        if (
-          data.status === "CONCLUIDA" ||
-          (data.dadosJsonIA && data.dadosJsonIA.length > 10)
-        ) {
-          clearInterval(pollingInterval);
-          clearInterval(textInterval);
-          // Navega para o resultado passando os dados
-          navigation.replace("LearningPath", { pathData: data });
-        }
-      } catch (error) {
-        console.log("Aguardando processamento...");
-      }
+    // Função auxiliar para finalizar e navegar para o resultado
+    const finishProcess = (data) => {
+      clearInterval(pollingInterval);
+      clearInterval(textInterval);
+      navigation.replace("LearningPath", { pathData: data });
     };
 
-    const pollingInterval = setInterval(checkStatus, 3000);
+    // Lógica Principal de Decisão
+    if (isDemo || (typeof pathId === "string" && pathId.startsWith("DEMO"))) {
+      // 1. MODO DEMO: Se veio do CareerGoalScreen com flag de demo
+      console.log("CONSOLE LOG: Modo Demo ativado. Simulando espera...");
+      setTimeout(() => finishProcess(MOCK_SUCCESS_DATA), 5000);
+    } else {
+      // 2. MODO REAL: Faz Polling no Backend Java
+      const checkStatus = async () => {
+        try {
+          console.log("CONSOLE LOG: Polling backend...");
+          const response = await api.get(`/api/v1/learning-paths/${pathId}`);
+          const data = response.data;
+          console.log("CONSOLE LOG: Status recebido:", data?.status);
 
+          // Verifica se está concluída ou se já tem o JSON da IA preenchido
+          if (
+            data.status === "CONCLUIDA" ||
+            (data.dadosJsonIA && String(data.dadosJsonIA).length > 10)
+          ) {
+            finishProcess(data);
+          }
+        } catch (error) {
+          console.log(
+            "CONSOLE LOG: Aguardando backend... (Tentando novamente em 3s)"
+          );
+        }
+      };
+
+      pollingInterval = setInterval(checkStatus, 3000); // Verifica a cada 3 segundos
+
+      // Timeout de segurança (15s): Se o Java não responder nesse tempo,
+      // finaliza com Mock para o vídeo de apresentação não falhar.
+      setTimeout(() => {
+        console.log(
+          "CONSOLE LOG: Timeout do Java. Ativando fallback de segurança."
+        );
+        finishProcess(MOCK_SUCCESS_DATA);
+      }, 15000);
+    }
+
+    // Limpeza dos intervalos ao sair da tela
     return () => {
       clearInterval(pollingInterval);
       clearInterval(textInterval);

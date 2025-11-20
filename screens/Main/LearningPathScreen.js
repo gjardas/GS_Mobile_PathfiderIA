@@ -1,5 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"; // Import para salvar no perfil
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -35,6 +35,25 @@ const createStyles = (theme) =>
       color: theme.colors.primaryForeground,
       opacity: 0.8,
     },
+    // Barra de Progresso
+    progressContainer: {
+      marginTop: 16,
+      height: 8,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      borderRadius: 4,
+      overflow: "hidden",
+    },
+    progressBar: {
+      height: "100%",
+      backgroundColor: theme.colors.success || "#10B981", // Verde
+      borderRadius: 4,
+    },
+    progressText: {
+      color: theme.colors.primaryForeground,
+      fontSize: 12,
+      marginTop: 4,
+      textAlign: "right",
+    },
     content: {
       padding: theme.spacing.l,
     },
@@ -47,16 +66,15 @@ const createStyles = (theme) =>
       borderColor: theme.colors.border,
       flexDirection: "row",
       gap: 12,
-      alignItems: "center", // Alinha ícone de check com o texto
+      alignItems: "center",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,
       shadowRadius: 4,
       elevation: 2,
     },
-    // Estilo para quando o card está concluído
     cardCompleted: {
-      backgroundColor: theme.colors.muted, // Fica cinzinha
+      backgroundColor: theme.colors.muted,
       borderColor: theme.colors.primary,
     },
     checkBox: {
@@ -83,7 +101,7 @@ const createStyles = (theme) =>
       marginBottom: 4,
     },
     stepTitleCompleted: {
-      textDecorationLine: "line-through", // Risca o texto
+      textDecorationLine: "line-through",
       color: theme.colors.mutedForeground,
     },
     stepDesc: {
@@ -105,6 +123,18 @@ const createStyles = (theme) =>
       color: theme.colors.mutedForeground,
       textTransform: "uppercase",
     },
+    completionBanner: {
+      backgroundColor: theme.colors.success || "#10B981",
+      padding: theme.spacing.m,
+      borderRadius: theme.spacing.m,
+      marginBottom: theme.spacing.l,
+      alignItems: "center",
+    },
+    completionText: {
+      color: "#FFFFFF",
+      fontWeight: "bold",
+      fontSize: 16,
+    },
     homeButton: {
       marginTop: theme.spacing.m,
       marginBottom: theme.spacing.xl,
@@ -125,39 +155,59 @@ export default function LearningPathScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { pathData } = route.params || {};
+  const pathId = pathData?.idTrilha || pathData?.id; // ID único para salvar progresso
 
-  // Estado para controlar quais passos foram marcados (Set de índices)
   const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [steps, setSteps] = useState([]);
 
-  // Parseia os dados (mesma lógica de antes)
-  let steps = [];
-  try {
-    if (pathData?.dadosJsonIA) {
-      let rawData = pathData.dadosJsonIA;
-      if (typeof rawData === "string") {
-        rawData = rawData
-          .replace(/```json/g, "")
-          .replace(/```/g, "")
-          .trim();
-        try {
-          rawData = JSON.parse(rawData);
-        } catch (e) {}
+  // 1. Carregar Passos e Progresso Salvo
+  useEffect(() => {
+    // Parseia os dados da IA
+    let parsedSteps = [];
+    try {
+      if (pathData?.dadosJsonIA) {
+        let rawData = pathData.dadosJsonIA;
+        if (typeof rawData === "string") {
+          rawData = rawData
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+          try {
+            rawData = JSON.parse(rawData);
+          } catch (e) {}
+        }
+        if (Array.isArray(rawData)) {
+          parsedSteps = rawData;
+        } else if (typeof rawData === "object") {
+          parsedSteps = rawData.steps || rawData.trilha || rawData.passos || [];
+        }
       }
-      if (Array.isArray(rawData)) {
-        steps = rawData;
-      } else if (typeof rawData === "object") {
-        steps = rawData.steps || rawData.trilha || rawData.passos || [];
-      }
+    } catch (e) {
+      console.error(e);
     }
-  } catch (e) {
-    console.error(e);
-  }
+    setSteps(parsedSteps);
 
-  // --- LÓGICA NOVA: Adicionar Habilidade ao Perfil ---
+    // Carrega progresso do AsyncStorage
+    loadProgress();
+  }, [pathId]);
+
+  const loadProgress = async () => {
+    try {
+      const savedProgress = await AsyncStorage.getItem(
+        `@PathProgress:${pathId}`
+      );
+      if (savedProgress) {
+        setCompletedSteps(new Set(JSON.parse(savedProgress)));
+      }
+    } catch (error) {
+      console.log("Erro ao carregar progresso", error);
+    }
+  };
+
+  // 2. Lógica de Check + Verificação de Conclusão
   const handleCheckStep = async (stepTitle, index) => {
-    // 1. Atualiza visual (Check/Uncheck)
     const newCompleted = new Set(completedSteps);
-    const isChecking = !newCompleted.has(index); // Se não tem, está marcando agora
+    const isChecking = !newCompleted.has(index);
 
     if (isChecking) {
       newCompleted.add(index);
@@ -166,34 +216,51 @@ export default function LearningPathScreen({ navigation, route }) {
     }
     setCompletedSteps(newCompleted);
 
-    // 2. Se estiver marcando (Checked), adiciona ao perfil
+    // Persistência do progresso da trilha
+    await AsyncStorage.setItem(
+      `@PathProgress:${pathId}`,
+      JSON.stringify([...newCompleted])
+    );
+
+    // Adiciona Habilidade ao Perfil se marcar
     if (isChecking && stepTitle) {
-      try {
-        const storedProfile = await AsyncStorage.getItem("@App:profile");
-        let profile = storedProfile
-          ? JSON.parse(storedProfile)
-          : { skills: [] };
+      updateUserProfile(stepTitle);
+    }
 
-        // Garante que skills é um array
-        if (!profile.skills) profile.skills = [];
-
-        // Verifica se já tem a habilidade para não duplicar
-        if (!profile.skills.includes(stepTitle)) {
-          profile.skills.push(stepTitle);
-
-          // Salva de volta
-          await AsyncStorage.setItem("@App:profile", JSON.stringify(profile));
-
-          Alert.alert(
-            "Parabéns! 🚀",
-            `A habilidade "${stepTitle}" foi adicionada ao seu perfil.`
-          );
-        }
-      } catch (error) {
-        console.error("Erro ao salvar habilidade:", error);
-      }
+    // Verifica Conclusão Total
+    if (isChecking && newCompleted.size === steps.length && steps.length > 0) {
+      Alert.alert(
+        "🎉 Trilha Concluída!",
+        "Parabéns! Você completou todas as etapas desta jornada."
+      );
     }
   };
+
+  const updateUserProfile = async (skill) => {
+    try {
+      const storedProfile = await AsyncStorage.getItem("@App:profile");
+      let profile = storedProfile ? JSON.parse(storedProfile) : { skills: [] };
+      if (!profile.skills) profile.skills = [];
+
+      if (!profile.skills.includes(skill)) {
+        profile.skills.push(skill);
+        await AsyncStorage.setItem("@App:profile", JSON.stringify(profile));
+        Alert.alert(
+          "Skill Desbloqueada! 🔓",
+          `"${skill}" foi adicionada ao seu perfil.`
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Cálculos de Progresso
+  const totalSteps = steps.length;
+  const completedCount = completedSteps.size;
+  const progressPercent =
+    totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
+  const isFullyCompleted = totalSteps > 0 && completedCount === totalSteps;
 
   return (
     <View style={styles.container}>
@@ -202,11 +269,28 @@ export default function LearningPathScreen({ navigation, route }) {
           {pathData?.tituloObjetivo || "Sua Trilha"}
         </Text>
         <Text style={styles.headerSubtitle}>
-          Toque no círculo para concluir e ganhar a skill!
+          {completedCount} de {totalSteps} etapas concluídas
         </Text>
+
+        {/* Barra de Progresso */}
+        <View style={styles.progressContainer}>
+          <View
+            style={[styles.progressBar, { width: `${progressPercent}%` }]}
+          />
+        </View>
+        <Text style={styles.progressText}>{Math.round(progressPercent)}%</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Banner de Conclusão */}
+        {isFullyCompleted && (
+          <View style={styles.completionBanner}>
+            <Text style={styles.completionText}>
+              🏆 Trilha Finalizada com Sucesso!
+            </Text>
+          </View>
+        )}
+
         {steps && steps.length > 0 ? (
           steps.map((step, index) => {
             const isDone = completedSteps.has(index);
@@ -220,7 +304,6 @@ export default function LearningPathScreen({ navigation, route }) {
                 onPress={() => handleCheckStep(title, index)}
                 activeOpacity={0.7}
               >
-                {/* CHECKBOX CUSTOMIZADO */}
                 <View
                   style={[styles.checkBox, isDone && styles.checkBoxSelected]}
                 >

@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +12,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { useAlert } from "../../context/AlertContext"; // Importa o Hook de Alerta Customizado
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -64,7 +64,6 @@ const createStyles = (theme) =>
       color: theme.colors.mutedForeground,
       borderColor: theme.colors.border,
     },
-    // Skills (Tags)
     skillsContainer: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -121,32 +120,27 @@ export default function ProfileScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { user } = useAuth();
+  const { showAlert } = useAlert(); // Usa o Hook do Alerta
 
-  // Estados do Formulário
   const [name, setName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Carrega dados ao abrir a tela
   useEffect(() => {
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
     try {
-      // Tenta buscar perfil salvo localmente (Mock de persistência)
-      // Num app real completo, aqui faríamos um GET /api/profile
       const storedProfile = await AsyncStorage.getItem("@App:profile");
-
       if (storedProfile) {
         const data = JSON.parse(storedProfile);
         setName(data.name || user?.name || "");
         setJobTitle(data.jobTitle || "");
         setSkills(data.skills || []);
       } else {
-        // Se não tiver perfil salvo, usa o nome do login
         setName(user?.name || "");
       }
     } catch (error) {
@@ -154,21 +148,18 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  // Adicionar Skill (CREATE na lista)
   const handleAddSkill = () => {
     const trimmedSkill = newSkill.trim();
     if (trimmedSkill && !skills.includes(trimmedSkill)) {
       setSkills([...skills, trimmedSkill]);
-      setNewSkill(""); // Limpa o campo
+      setNewSkill("");
     }
   };
 
-  // Remover Skill (DELETE na lista)
   const handleRemoveSkill = (skillToRemove) => {
     setSkills(skills.filter((s) => s !== skillToRemove));
   };
 
-  // Salvar Perfil (UPDATE)
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -179,18 +170,19 @@ export default function ProfileScreen({ navigation }) {
         updatedAt: new Date().toISOString(),
       };
 
-      // 1. Salva localmente para persistência rápida
       await AsyncStorage.setItem("@App:profile", JSON.stringify(profileData));
 
-      // 2. Simulação de envio para API (PUT)
-      // await api.put('/api/profile', profileData);
-
-      // Pequeno delay para dar feedback visual
+      // Simula um delay de rede para feedback visual
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      Alert.alert("Sucesso", "Seu perfil foi atualizado!");
+      // Exibe o alerta customizado bonito
+      showAlert("Sucesso", "Seu perfil foi atualizado e salvo com segurança!", {
+        text: "Ótimo",
+      });
     } catch (error) {
-      Alert.alert("Erro", "Não foi possível salvar as alterações.");
+      showAlert("Erro", "Não foi possível salvar as alterações.", {
+        style: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -201,7 +193,6 @@ export default function ProfileScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -228,7 +219,6 @@ export default function ProfileScreen({ navigation }) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Campo: Nome */}
         <Text style={styles.sectionLabel}>Nome Completo</Text>
         <TextInput
           style={styles.input}
@@ -238,7 +228,6 @@ export default function ProfileScreen({ navigation }) {
           placeholderTextColor={theme.colors.mutedForeground}
         />
 
-        {/* Campo: Email (Somente Leitura) */}
         <Text style={styles.sectionLabel}>Email</Text>
         <TextInput
           style={[styles.input, styles.readOnlyInput]}
@@ -246,7 +235,6 @@ export default function ProfileScreen({ navigation }) {
           editable={false}
         />
 
-        {/* Campo: Cargo Atual (Ponto A) */}
         <Text style={styles.sectionLabel}>Cargo Atual (Ponto A)</Text>
         <TextInput
           style={styles.input}
@@ -256,10 +244,8 @@ export default function ProfileScreen({ navigation }) {
           onChangeText={setJobTitle}
         />
 
-        {/* Seção: Habilidades (Tags) */}
         <Text style={styles.sectionLabel}>Minhas Habilidades</Text>
 
-        {/* Lista de Skills */}
         <View style={styles.skillsContainer}>
           {skills.map((skill, index) => (
             <View key={index} style={styles.skillBadge}>
@@ -286,7 +272,6 @@ export default function ProfileScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Input para adicionar Skill */}
         <View style={styles.addSkillRow}>
           <TextInput
             style={[styles.input, { flex: 1 }]}
@@ -294,7 +279,7 @@ export default function ProfileScreen({ navigation }) {
             placeholderTextColor={theme.colors.mutedForeground}
             value={newSkill}
             onChangeText={setNewSkill}
-            onSubmitEditing={handleAddSkill} // Adiciona ao dar enter no teclado
+            onSubmitEditing={handleAddSkill}
           />
           <TouchableOpacity style={styles.addButton} onPress={handleAddSkill}>
             <Svg
@@ -313,7 +298,6 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Botão Salvar */}
         <TouchableOpacity
           style={[styles.saveButton, loading && { opacity: 0.7 }]}
           onPress={handleSave}
