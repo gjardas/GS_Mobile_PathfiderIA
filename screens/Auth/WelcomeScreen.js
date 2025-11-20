@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -10,8 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// 1. Importar componentes do react-native-svg
+// Importações de SVG
 import Svg, { Circle, Polygon } from "react-native-svg";
+// Importações de Contexto
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -39,7 +41,7 @@ const createStyles = (theme) =>
       justifyContent: "center",
       alignItems: "center",
       marginBottom: theme.spacing.m,
-      // Adiciona uma sombra suave para destacar o ícone
+      // Sombra suave
       shadowColor: theme.colors.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
@@ -66,7 +68,7 @@ const createStyles = (theme) =>
     },
     tabButton: {
       flex: 1,
-      paddingVertical: 8,
+      paddingVertical: 10,
       alignItems: "center",
       borderRadius: theme.spacing.s - 4,
     },
@@ -79,12 +81,12 @@ const createStyles = (theme) =>
       elevation: 2,
     },
     tabText: {
-      fontWeight: "500",
+      fontWeight: "600",
       color: theme.colors.mutedForeground,
     },
     activeTabText: {
       color: theme.colors.foreground,
-      fontWeight: "600",
+      fontWeight: "bold",
     },
     form: {
       padding: theme.spacing.s,
@@ -122,25 +124,69 @@ const createStyles = (theme) =>
 export default function WelcomeScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState("login"); // 'login' ou 'register'
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Função para validar a senha conforme regras do Java
+  const validatePassword = (pass) => {
+    const hasUpperCase = /[A-Z]/.test(pass);
+    const hasNumber = /[0-9]/.test(pass);
+    const hasSpecial = /[@#$%^&+=!*]/.test(pass);
+    const isLongEnough = pass.length >= 8;
+
+    if (!isLongEnough) return "A senha deve ter no mínimo 8 caracteres.";
+    if (!hasUpperCase)
+      return "A senha deve ter pelo menos uma letra maiúscula.";
+    if (!hasNumber) return "A senha deve ter pelo menos um número.";
+    if (!hasSpecial)
+      return "A senha deve ter pelo menos um caractere especial (@ # $ % ^ & + = ! *).";
+
+    return null;
+  };
+
   const handleSubmit = async () => {
+    // Validação básica de campos vazios
     if (!email || !password || (activeTab === "register" && !name)) {
-      Alert.alert("Erro", "Por favor, preencha todos os campos.");
+      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
     }
 
     setIsLoading(true);
+
     try {
-      await signIn(email, password, activeTab === "register" ? name : "");
+      if (activeTab === "login") {
+        // --- LOGIN ---
+        await signIn(email, password);
+        // Se der sucesso, o AuthContext muda o estado e a tela troca sozinha
+      } else {
+        // --- REGISTRO ---
+
+        // 1. Valida Senha Forte (Regra do Java)
+        const passwordError = validatePassword(password);
+        if (passwordError) {
+          Alert.alert("Senha Fraca", passwordError);
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. Chama API de Registro
+        await signUp(name, email, password);
+
+        Alert.alert(
+          "Sucesso",
+          "Conta criada com sucesso! Faça login para continuar."
+        );
+        setActiveTab("login"); // Muda a aba para login automaticamente
+        // Opcional: Limpar campos de senha
+        setPassword("");
+      }
     } catch (error) {
-      Alert.alert("Erro", "Falha na autenticação.");
+      Alert.alert("Erro", error.message || "Ocorreu um erro inesperado.");
     } finally {
       setIsLoading(false);
     }
@@ -152,15 +198,15 @@ export default function WelcomeScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.content}>
+        {/* HEADER COM ÍCONE SVG */}
         <View style={styles.header}>
-          {/* 2. Aqui está o seu ícone SVG implementado */}
           <View style={styles.logoCircle}>
             <Svg
               width="40"
               height="40"
               viewBox="0 0 24 24"
               fill="none"
-              stroke={theme.colors.primaryForeground} // Usa a cor clara do tema
+              stroke={theme.colors.primaryForeground}
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -169,11 +215,11 @@ export default function WelcomeScreen() {
               <Polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
             </Svg>
           </View>
-
           <Text style={styles.title}>Pathfinder AI</Text>
           <Text style={styles.subtitle}>Seu GPS de Carreira Inteligente</Text>
         </View>
 
+        {/* ABAS (LOGIN / REGISTER) */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[
@@ -204,11 +250,12 @@ export default function WelcomeScreen() {
                 activeTab === "register" && styles.activeTabText,
               ]}
             >
-              Registrar
+              Criar Conta
             </Text>
           </TouchableOpacity>
         </View>
 
+        {/* FORMULÁRIO */}
         <View style={styles.form}>
           <Text
             style={{
@@ -218,15 +265,17 @@ export default function WelcomeScreen() {
               color: theme.colors.foreground,
             }}
           >
-            {activeTab === "login" ? "Bem-vindo de volta" : "Criar conta"}
+            {activeTab === "login"
+              ? "Bem-vindo de volta"
+              : "Comece sua jornada"}
           </Text>
 
           {activeTab === "register" && (
             <>
-              <Text style={styles.inputLabel}>Nome</Text>
+              <Text style={styles.inputLabel}>Nome Completo</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Seu nome completo"
+                placeholder="Seu nome"
                 placeholderTextColor={theme.colors.mutedForeground}
                 value={name}
                 onChangeText={setName}
@@ -255,19 +304,30 @@ export default function WelcomeScreen() {
             value={password}
             onChangeText={setPassword}
           />
+          {activeTab === "register" && (
+            <Text
+              style={{
+                fontSize: 12,
+                color: theme.colors.mutedForeground,
+                marginTop: 5,
+              }}
+            >
+              Mínimo 8 caracteres, 1 maiúscula, 1 número e 1 símbolo.
+            </Text>
+          )}
 
           <TouchableOpacity
             style={[styles.primaryButton, isLoading && { opacity: 0.7 }]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
-            <Text style={styles.primaryButtonText}>
-              {isLoading
-                ? "Processando..."
-                : activeTab === "login"
-                ? "Entrar"
-                : "Criar Conta"}
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color={theme.colors.primaryForeground} />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {activeTab === "login" ? "Entrar" : "Criar Conta"}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

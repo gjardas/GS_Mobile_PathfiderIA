@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const API_BASE_URL = "https://sua-api-fiap.azurewebsites.net/api";
+const API_BASE_URL = "http://10.0.2.2:8080";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -12,7 +12,7 @@ const api = axios.create({
 
 api.interceptors.request.use(async (config) => {
   try {
-    const token = await AsyncStorage.getItem("userToken");
+    const token = await AsyncStorage.getItem("@App:token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
