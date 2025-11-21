@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,8 +11,8 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { useAlert } from "../../context/AlertContext"; // Importa o Hook de Alerta Customizado
-import { useAuth } from "../../context/AuthContext";
+import api from "../../api/ApiService"; // API Service
+import { useAlert } from "../../context/AlertContext";
 import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
@@ -119,32 +118,39 @@ const createStyles = (theme) =>
 export default function ProfileScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { user } = useAuth();
-  const { showAlert } = useAlert(); // Usa o Hook do Alerta
+  const { showAlert } = useAlert();
 
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
 
   useEffect(() => {
-    loadProfile();
+    loadProfileFromApi();
   }, []);
 
-  const loadProfile = async () => {
+  // 1. Carrega dados do Backend (Oracle)
+  const loadProfileFromApi = async () => {
     try {
-      const storedProfile = await AsyncStorage.getItem("@App:profile");
-      if (storedProfile) {
-        const data = JSON.parse(storedProfile);
-        setName(data.name || user?.name || "");
-        setJobTitle(data.jobTitle || "");
-        setSkills(data.skills || []);
-      } else {
-        setName(user?.name || "");
-      }
+      setIsFetching(true);
+      const response = await api.get("/api/v1/profile");
+      const data = response.data;
+
+      // Preenche os estados com os dados reais do banco
+      setName(data.nome || "");
+      setEmail(data.email || "");
+      setJobTitle(data.cargoAtual || "");
+      setSkills(data.skills || []);
     } catch (error) {
       console.error("Erro ao carregar perfil:", error);
+      showAlert("Aviso", "Não foi possível carregar seus dados do servidor.", {
+        style: "destructive",
+      });
+    } finally {
+      setIsFetching(false);
     }
   };
 
@@ -160,33 +166,43 @@ export default function ProfileScreen({ navigation }) {
     setSkills(skills.filter((s) => s !== skillToRemove));
   };
 
+  // 2. Salva dados no Backend
   const handleSave = async () => {
     setLoading(true);
     try {
-      const profileData = {
-        name,
-        jobTitle,
-        skills,
-        updatedAt: new Date().toISOString(),
+      const payload = {
+        nome: name,
+        cargoAtual: jobTitle,
+        skills: skills,
       };
 
-      await AsyncStorage.setItem("@App:profile", JSON.stringify(profileData));
+      await api.put("/api/v1/profile", payload);
 
-      // Simula um delay de rede para feedback visual
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Exibe o alerta customizado bonito
-      showAlert("Sucesso", "Seu perfil foi atualizado e salvo com segurança!", {
-        text: "Ótimo",
+      showAlert("Sucesso", "Perfil sincronizado com o banco de dados!", {
+        text: "OK",
       });
     } catch (error) {
-      showAlert("Erro", "Não foi possível salvar as alterações.", {
+      console.error(error);
+      showAlert("Erro", "Falha ao salvar no servidor.", {
         style: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
+
+  if (isFetching) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -228,10 +244,10 @@ export default function ProfileScreen({ navigation }) {
           placeholderTextColor={theme.colors.mutedForeground}
         />
 
-        <Text style={styles.sectionLabel}>Email</Text>
+        <Text style={styles.sectionLabel}>Email (Cadastro)</Text>
         <TextInput
           style={[styles.input, styles.readOnlyInput]}
-          value={user?.email || "usuario@email.com"}
+          value={email}
           editable={false}
         />
 

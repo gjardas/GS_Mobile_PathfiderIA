@@ -7,11 +7,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"; // Removido Alert nativo
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
-import api from "../../api/apiService";
+import api from "../../api/ApiService";
 import { useAlert } from "../../context/AlertContext";
-import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
@@ -95,31 +94,11 @@ const createStyles = (theme) =>
 export default function CareerGoalScreen({ navigation }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { user } = useAuth();
   const { showAlert } = useAlert();
 
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-
-  // Função auxiliar: Busca ID e garante que é um NÚMERO
-  const fetchLatestId = async () => {
-    try {
-      const response = await api.get("/api/v1/learning-paths?size=1");
-      const content = response.data?.content || response.data;
-      const latest =
-        Array.isArray(content) && content.length > 0 ? content[0] : null;
-
-      // Tenta extrair ID de qualquer campo possível
-      const idVal = latest
-        ? latest.idTrilha || latest.id || latest.trilhaId
-        : 0;
-      return Number(idVal); // Força conversão para número para comparação correta
-    } catch (error) {
-      console.log("Erro ao buscar último ID:", error.message);
-      return 0;
-    }
-  };
 
   const handleGenerate = async () => {
     if (!goal.trim()) {
@@ -131,13 +110,8 @@ export default function CareerGoalScreen({ navigation }) {
 
     setLoading(true);
     setStatusMessage("Conectando ao servidor...");
-    console.log("--- INÍCIO DO FLUXO DE CRIAÇÃO ---");
 
     try {
-      // 1. Pega o ID atual (Snapshot antes de criar)
-      const previousId = await fetchLatestId();
-      console.log(`DEBUG: ID Atual (Antes do POST): ${previousId}`);
-
       const profileJson = await AsyncStorage.getItem("@App:profile");
       const profile = profileJson ? JSON.parse(profileJson) : {};
       const currentRole = profile.jobTitle || "Profissional em transição";
@@ -147,73 +121,40 @@ export default function CareerGoalScreen({ navigation }) {
         tituloObjetivo: goal,
       };
 
-      // 2. Envia POST
-      const responsePost = await api.post("/api/v1/learning-paths", payload);
-      console.log(`DEBUG: POST Status: ${responsePost.status}`);
+      console.log("Enviando POST...", payload);
+      await api.post("/api/v1/learning-paths", payload);
 
-      if ([200, 201, 202].includes(responsePost.status)) {
-        setStatusMessage("Aguardando IA...");
+      setStatusMessage("Sincronizando dados...");
 
-        // 3. Polling para detectar Novo ID (que seja MAIOR que o previousId)
-        let foundId = null;
-        let attempts = 0;
-        const maxAttempts = 10; // Aumentado para dar mais tempo (~20s)
+      // Aguarda persistência do banco
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        while (attempts < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, 2000)); // Espera 2s entre tentativas
+      // ESTRATÉGIA: Buscar a última trilha criada na lista (sem cache local de IDs)
+      console.log("Buscando última trilha na lista...");
+      const responseList = await api.get(
+        "/api/v1/learning-paths?page=0&size=1&sort=id,desc"
+      );
 
-          const currentId = await fetchLatestId();
-          console.log(
-            `DEBUG: Tentativa ${
-              attempts + 1
-            }: ID no banco = ${currentId} (Anterior: ${previousId})`
-          );
+      const content = responseList.data?.content || responseList.data;
+      const latestPath =
+        Array.isArray(content) && content.length > 0 ? content[0] : null;
 
-          // COMPARAÇÃO NÚMERICA: Se o ID atual for maior que o anterior, é o novo!
-          if (currentId > previousId) {
-            foundId = currentId;
-            break;
-          }
+      if (latestPath) {
+        const finalId = latestPath.idTrilha || latestPath.id;
+        console.log("SUCESSO! ID recuperado da API:", finalId);
 
-          attempts++;
-        }
-
-        // Se não achou novo, mas o POST deu 200, tenta usar (previousId + 1) como fallback
-        const finalId = foundId || (previousId > 0 ? previousId + 1 : null);
-
-        if (finalId) {
-          console.log("DEBUG: SUCESSO! ID Final usado:", finalId);
-
-          // 4. SALVA O ID NA LISTA DO UTILIZADOR (Para aparecer no Dashboard)
-          if (user && user.email) {
-            const safeEmail = user.email.toLowerCase().trim();
-            const storageKey = `@App:myPathIds:${safeEmail}`;
-
-            const storedIds = await AsyncStorage.getItem(storageKey);
-            let myIds = storedIds ? JSON.parse(storedIds) : [];
-
-            // Salva como String para padronizar
-            const idString = String(finalId);
-
-            if (!myIds.includes(idString)) {
-              myIds.push(idString);
-              await AsyncStorage.setItem(storageKey, JSON.stringify(myIds));
-              console.log("DEBUG: ID salvo localmente na lista de:", safeEmail);
-              console.log("DEBUG: Lista atualizada:", myIds);
-            }
-          }
-
-          navigation.replace("Processing", { pathId: finalId });
-        } else {
-          console.log("DEBUG: FALHA. Nenhum ID novo detectado. Ativando Demo.");
-          navigation.replace("Processing", { isDemo: true });
-        }
+        // Navega para o processamento (sem salvar ID no storage)
+        navigation.replace("Processing", { pathId: finalId });
+      } else {
+        throw new Error(
+          "A trilha foi enviada, mas não apareceu na lista do servidor."
+        );
       }
     } catch (error) {
-      console.error("DEBUG ERRO:", error);
-      showAlert("Erro", "Não foi possível conectar com o servidor.", {
-        style: "destructive",
-      });
+      console.error("ERRO NO PROCESSO:", error);
+      const msg =
+        error.response?.data?.error || "Erro de conexão. Tente novamente.";
+      showAlert("Erro", msg, { style: "destructive" });
     } finally {
       setLoading(false);
       setStatusMessage("");

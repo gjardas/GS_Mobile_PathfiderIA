@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
-import api from "../../api/apiService";
+import api from "../../api/ApiService";
 import { useAlert } from "../../context/AlertContext";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -56,8 +56,6 @@ const createStyles = (theme) =>
       marginTop: theme.spacing.l,
       marginBottom: theme.spacing.m,
     },
-
-    // Card Principal (Azul)
     primaryCard: {
       backgroundColor: theme.colors.primary,
       borderRadius: theme.spacing.m,
@@ -80,8 +78,6 @@ const createStyles = (theme) =>
       opacity: 0.8,
       fontSize: 14,
     },
-
-    // Card Secundário (Perfil)
     secondaryCard: {
       backgroundColor: theme.colors.card,
       borderRadius: theme.spacing.m,
@@ -102,8 +98,6 @@ const createStyles = (theme) =>
       color: theme.colors.mutedForeground,
       fontSize: 14,
     },
-
-    // Card de Trilha
     pathCard: {
       backgroundColor: theme.colors.card,
       padding: theme.spacing.m,
@@ -126,8 +120,6 @@ const createStyles = (theme) =>
       flex: 1,
     },
     pathStatus: { fontSize: 12, fontWeight: "600" },
-
-    // Barras de Progresso
     miniProgressContainer: {
       height: 4,
       backgroundColor: theme.colors.muted,
@@ -139,7 +131,6 @@ const createStyles = (theme) =>
       height: "100%",
       backgroundColor: theme.colors.success || "#10B981",
     },
-
     emptyState: {
       padding: theme.spacing.xl,
       alignItems: "center",
@@ -163,7 +154,6 @@ export default function DashboardScreen({ navigation }) {
   const [loadingPaths, setLoadingPaths] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Recarrega sempre que a tela ganha foco
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -179,43 +169,24 @@ export default function DashboardScreen({ navigation }) {
     if (!refreshing) setLoadingPaths(true);
 
     try {
-      // 1. Carregar Nome do Perfil (Atualizado)
-      const storedProfile = await AsyncStorage.getItem("@App:profile");
-      if (storedProfile) {
-        const profileData = JSON.parse(storedProfile);
-        if (profileData.name) setDisplayName(profileData.name);
+      // 1. BUSCA O NOME REAL NA API (CORREÇÃO DO NOME "USUÁRIO")
+      try {
+        const profileResponse = await api.get("/api/v1/profile");
+        if (profileResponse.data && profileResponse.data.nome) {
+          setDisplayName(profileResponse.data.nome);
+        }
+      } catch (profileError) {
+        console.log("Não foi possível carregar o nome do perfil", profileError);
       }
 
-      // 2. Carregar a lista de IDs de trilhas "Meus"
-      let myPathIds = [];
-      if (user && user.email) {
-        // Normaliza o email para garantir consistência na chave
-        const safeEmail = user.email.toLowerCase().trim();
-        const storedIds = await AsyncStorage.getItem(
-          `@App:myPathIds:${safeEmail}`
-        );
-        myPathIds = storedIds ? JSON.parse(storedIds) : [];
-        console.log("Dashboard - Meus IDs:", myPathIds);
-      }
-
-      // 3. Buscar TODAS as trilhas da API
+      // 2. Busca as trilhas na API
       const response = await api.get("/api/v1/learning-paths");
-      // Suporte para resposta paginada do Spring (.content) ou lista direta
       const apiPaths = response.data?.content || response.data || [];
 
-      // 4. Filtrar: Mostrar apenas as trilhas que estão na minha lista local
-      const myPaths = apiPaths.filter((path) => {
-        // Converte tudo para String para evitar erro de comparação (15 vs "15")
-        const pId = String(path.idTrilha || path.id || path.trilhaId);
-        return myPathIds.map(String).includes(pId);
-      });
-
-      // 5. Calcular o progresso visual para cada trilha
       const enrichedPaths = await Promise.all(
-        myPaths.map(async (path) => {
+        apiPaths.map(async (path) => {
           const pId = path.idTrilha || path.id || path.trilhaId;
 
-          // Se ainda não está pronta, retorna status de processamento
           if (path.status !== "CONCLUIDA") {
             return {
               ...path,
@@ -225,11 +196,9 @@ export default function DashboardScreen({ navigation }) {
           }
 
           try {
-            // Calcula total de passos do JSON da IA
             let totalSteps = 0;
             if (path.dadosJsonIA) {
               let raw = path.dadosJsonIA;
-              // Fallback para string JSON (caso o backend mande string)
               if (typeof raw === "string") {
                 raw = raw
                   .replace(/```json/g, "")
@@ -243,7 +212,6 @@ export default function DashboardScreen({ navigation }) {
               if (Array.isArray(raw)) {
                 totalSteps = raw.length;
               } else if (typeof raw === "object") {
-                // Procura pela lista em várias chaves possíveis
                 const list =
                   raw.steps ||
                   raw.trilha ||
@@ -255,14 +223,11 @@ export default function DashboardScreen({ navigation }) {
               }
             }
 
-            // Lê os passos marcados como "feitos" no AsyncStorage
             const savedProgress = await AsyncStorage.getItem(
               `@PathProgress:${pId}`
             );
             const completedSet = savedProgress ? JSON.parse(savedProgress) : [];
             const completedCount = completedSet.length;
-
-            // Calcula porcentagem (0 a 100)
             const percent =
               totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
 
@@ -286,9 +251,8 @@ export default function DashboardScreen({ navigation }) {
         })
       );
 
-      // Ordena para mostrar as mais recentes primeiro (assumindo ID incremental)
+      // Ordena por ID decrescente (mais novos primeiro)
       enrichedPaths.sort((a, b) => (b.idTrilha || 0) - (a.idTrilha || 0));
-
       setRecentPaths(enrichedPaths);
     } catch (error) {
       console.log("Erro ao carregar dashboard:", error);
@@ -308,10 +272,11 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const getStatusColor = (path) => {
-    if (path.status === "PROCESSANDO") return "#F59E0B"; // Laranja
-    if (path.userProgress === 100) return theme.colors.success || "#10B981"; // Verde
-    if (path.userProgress > 0) return theme.colors.primary; // Azul
-    return theme.colors.mutedForeground; // Cinza
+    if (path.status === "PROCESSANDO") return "#F59E0B";
+    if (path.status === "ERRO") return theme.colors.destructive;
+    if (path.userProgress === 100) return theme.colors.success || "#10B981";
+    if (path.userProgress > 0) return theme.colors.primary;
+    return theme.colors.mutedForeground;
   };
 
   return (
@@ -370,8 +335,6 @@ export default function DashboardScreen({ navigation }) {
               fill="none"
               stroke={theme.colors.primaryForeground}
               strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
             >
               <Path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </Svg>
@@ -395,8 +358,6 @@ export default function DashboardScreen({ navigation }) {
             fill="none"
             stroke={theme.colors.mutedForeground}
             strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
           >
             <Circle cx="12" cy="8" r="5" />
             <Path d="M20 21a8 8 0 1 0-16 0" />
@@ -417,10 +378,7 @@ export default function DashboardScreen({ navigation }) {
               style={styles.pathCard}
               onPress={() => {
                 const pId = path.idTrilha || path.id || path.trilhaId;
-                if (
-                  path.status === "PROCESSANDO" ||
-                  path.status === "PENDENTE"
-                ) {
+                if (path.status !== "CONCLUIDA") {
                   navigation.navigate("Processing", { pathId: pId });
                 } else {
                   navigation.navigate("LearningPath", { pathData: path });
@@ -434,19 +392,7 @@ export default function DashboardScreen({ navigation }) {
                 >
                   {path.displayStatus}
                 </Text>
-                <Svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={theme.colors.mutedForeground}
-                  strokeWidth="2"
-                  style={{ marginLeft: 8 }}
-                >
-                  <Path d="m9 18 6-6-6-6" />
-                </Svg>
               </View>
-
               {path.status === "CONCLUIDA" && (
                 <View style={styles.miniProgressContainer}>
                   <View
@@ -467,8 +413,7 @@ export default function DashboardScreen({ navigation }) {
                 textAlign: "center",
               }}
             >
-              Você ainda não gerou nenhuma trilha.
-              {"\n"}Toque no cartão azul para começar!
+              Nenhuma trilha encontrada no servidor.{"\n"}Crie a primeira agora!
             </Text>
           </View>
         )}

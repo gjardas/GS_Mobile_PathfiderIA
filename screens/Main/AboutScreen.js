@@ -136,7 +136,9 @@ export default function AboutScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.label}>Hash do Commit</Text>
           {/* Este é o hash fictício exigido na entrega. Em produção, viria do CI/CD */}
-          <Text style={[styles.value, styles.mono]}>a1b2c3d4e5f6</Text>
+          <Text style={[styles.value, styles.mono]}>
+            94e51a6fbb08b4c0e029c8e96078b419dbe77b8b
+          </Text>
 
           <Text style={styles.label}>Disciplina</Text>
           <Text style={styles.value}>Mobile Application Development</Text>

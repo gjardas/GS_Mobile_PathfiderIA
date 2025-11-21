@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import api from "../../api/apiService";
+import api from "../../api/ApiService";
+import { useAlert } from "../../context/AlertContext";
 import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
@@ -44,104 +45,87 @@ const createStyles = (theme) =>
 export default function ProcessingScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const { pathId, isDemo } = route.params || {};
+  const { showAlert } = useAlert();
+  const { pathId } = route.params || {};
+
+  const pollingRef = useRef(null);
+  const textIntervalRef = useRef(null);
 
   const [statusText, setStatusText] = useState("Inicializando...");
 
-  // Dados Mockados de Segurança (Caso o Backend falhe ou seja demo)
-  const MOCK_SUCCESS_DATA = {
-    tituloObjetivo: "Especialista Cloud (Demo)",
-    dadosJsonIA: {
-      steps: [
-        {
-          title: "Fundamentos de Cloud",
-          description: "Conceitos básicos de AWS e Azure.",
-          type: "Curso",
-        },
-        {
-          title: "Certificação AWS Practitioner",
-          description: "Preparação e exame oficial.",
-          type: "Certificação",
-        },
-        {
-          title: "Docker e Kubernetes",
-          description: "Orquestração de containers avançada.",
-          type: "Projeto Prático",
-        },
-        {
-          title: "Terraform",
-          description: "Infraestrutura como código (IaC).",
-          type: "Curso",
-        },
-      ],
-    },
-  };
-
   useEffect(() => {
-    console.log("CONSOLE LOG: Iniciando processamento para ID:", pathId);
+    console.log("PROCESSAMENTO: Iniciando para ID:", pathId);
 
     const steps = [
       "Analisando seu perfil atual...",
       "Mapeando gaps de competência...",
       "Consultando tendências de mercado...",
       "Estruturando plano de aprendizado...",
+      "Finalizando detalhes...",
     ];
 
     let stepIndex = 0;
-    const textInterval = setInterval(() => {
+    textIntervalRef.current = setInterval(() => {
       setStatusText(steps[stepIndex]);
       stepIndex = (stepIndex + 1) % steps.length;
-    }, 2000);
-
-    let pollingInterval;
+    }, 2500);
 
     const finishProcess = (data) => {
-      clearInterval(pollingInterval);
-      clearInterval(textInterval);
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (textIntervalRef.current) clearInterval(textIntervalRef.current);
       navigation.replace("LearningPath", { pathData: data });
     };
 
-    // Lógica Principal de Decisão
-    if (isDemo || (typeof pathId === "string" && pathId.startsWith("DEMO"))) {
-      console.log("CONSOLE LOG: Modo Demo ativado. Simulando espera...");
-      setTimeout(() => finishProcess(MOCK_SUCCESS_DATA), 5000);
-    } else {
-      // 2. MODO REAL: Faz Polling no Backend Java
-      const checkStatus = async () => {
-        try {
-          console.log("CONSOLE LOG: Polling backend...");
-          const response = await api.get(`/api/v1/learning-paths/${pathId}`);
-          const data = response.data;
-          console.log("CONSOLE LOG: Status recebido:", data?.status);
+    const handleFailure = (message) => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (textIntervalRef.current) clearInterval(textIntervalRef.current);
 
-          if (
-            data.status === "CONCLUIDA" ||
-            (data.dadosJsonIA && String(data.dadosJsonIA).length > 10)
-          ) {
-            finishProcess(data);
-          }
-        } catch (error) {
-          console.log(
-            "CONSOLE LOG: Aguardando backend... (Tentando novamente em 3s)"
-          );
-        }
-      };
+      showAlert("Erro", message, {
+        style: "destructive",
+        onPress: () => navigation.navigate("Dashboard"),
+      });
+    };
 
-      pollingInterval = setInterval(checkStatus, 3000);
-
-      // Timeout de segurança AUMENTADO (30s)
-      // Se o Java não responder nesse tempo, finaliza com Mock.
-      setTimeout(() => {
-        console.log(
-          "CONSOLE LOG: Timeout do Java (30s). Ativando fallback de segurança."
+    // Polling na LISTA para evitar erro 500 no endpoint de detalhe antigo
+    const checkStatus = async () => {
+      try {
+        // Busca os 5 últimos (margem de segurança)
+        const response = await api.get(
+          "/api/v1/learning-paths?page=0&size=5&sort=id,desc"
         );
-        finishProcess(MOCK_SUCCESS_DATA);
-      }, 30000); // Aumentado de 15000 para 30000 ms
-    }
+        const list = response.data?.content || response.data || [];
+
+        const targetTrilha = list.find((item) => {
+          const itemId = item.idTrilha || item.id;
+          return String(itemId) === String(pathId);
+        });
+
+        if (targetTrilha) {
+          if (
+            targetTrilha.status === "CONCLUIDA" ||
+            (targetTrilha.dadosJsonIA &&
+              String(targetTrilha.dadosJsonIA).length > 20)
+          ) {
+            finishProcess(targetTrilha);
+          } else if (targetTrilha.status === "ERRO") {
+            handleFailure(
+              "Houve um erro no processamento da IA. Tente novamente."
+            );
+          }
+        }
+      } catch (error) {
+        console.log("Erro no polling:", error.message);
+      }
+    };
+
+    checkStatus();
+    pollingRef.current = setInterval(checkStatus, 3000);
+
+    // Timeout removido para garantir persistência de dados reais da API
 
     return () => {
-      clearInterval(pollingInterval);
-      clearInterval(textInterval);
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (textIntervalRef.current) clearInterval(textIntervalRef.current);
     };
   }, [pathId, navigation]);
 
@@ -153,7 +137,6 @@ export default function ProcessingScreen({ navigation, route }) {
         Nossa IA está desenhando o caminho ideal entre seu perfil atual e seu
         objetivo.
       </Text>
-
       <View style={styles.stepContainer}>
         <Text style={styles.stepText}>{statusText}</Text>
       </View>
