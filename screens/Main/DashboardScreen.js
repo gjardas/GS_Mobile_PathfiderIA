@@ -18,10 +18,7 @@ import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
+    container: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       padding: theme.spacing.l,
       backgroundColor: theme.colors.card,
@@ -32,39 +29,26 @@ const createStyles = (theme) =>
       alignItems: "center",
       paddingTop: 60,
     },
-    greetingLabel: {
-      fontSize: 14,
-      color: theme.colors.mutedForeground,
-    },
+    greetingLabel: { fontSize: 14, color: theme.colors.mutedForeground },
     username: {
       fontSize: 24,
       fontWeight: "bold",
       color: theme.colors.foreground,
     },
-    headerActions: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 15,
-    },
-    aboutButton: {
-      padding: 8,
-    },
+    headerActions: { flexDirection: "row", alignItems: "center", gap: 15 },
+    aboutButton: { padding: 8 },
     aboutIcon: {
       fontSize: 20,
       fontWeight: "bold",
       color: theme.colors.primary,
     },
-    logoutButton: {
-      padding: 8,
-    },
+    logoutButton: { padding: 8 },
     logoutText: {
       fontSize: 14,
       fontWeight: "600",
       color: theme.colors.destructive,
     },
-    content: {
-      padding: theme.spacing.l,
-    },
+    content: { padding: theme.spacing.l },
     sectionTitle: {
       fontSize: 18,
       fontWeight: "600",
@@ -72,6 +56,8 @@ const createStyles = (theme) =>
       marginTop: theme.spacing.l,
       marginBottom: theme.spacing.m,
     },
+
+    // Card Principal (Azul)
     primaryCard: {
       backgroundColor: theme.colors.primary,
       borderRadius: theme.spacing.m,
@@ -94,6 +80,8 @@ const createStyles = (theme) =>
       opacity: 0.8,
       fontSize: 14,
     },
+
+    // Card Secundário (Perfil)
     secondaryCard: {
       backgroundColor: theme.colors.card,
       borderRadius: theme.spacing.m,
@@ -114,6 +102,8 @@ const createStyles = (theme) =>
       color: theme.colors.mutedForeground,
       fontSize: 14,
     },
+
+    // Card de Trilha
     pathCard: {
       backgroundColor: theme.colors.card,
       padding: theme.spacing.m,
@@ -135,10 +125,9 @@ const createStyles = (theme) =>
       color: theme.colors.foreground,
       flex: 1,
     },
-    pathStatus: {
-      fontSize: 12,
-      fontWeight: "600",
-    },
+    pathStatus: { fontSize: 12, fontWeight: "600" },
+
+    // Barras de Progresso
     miniProgressContainer: {
       height: 4,
       backgroundColor: theme.colors.muted,
@@ -150,6 +139,7 @@ const createStyles = (theme) =>
       height: "100%",
       backgroundColor: theme.colors.success || "#10B981",
     },
+
     emptyState: {
       padding: theme.spacing.xl,
       alignItems: "center",
@@ -173,6 +163,7 @@ export default function DashboardScreen({ navigation }) {
   const [loadingPaths, setLoadingPaths] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Recarrega sempre que a tela ganha foco
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -188,40 +179,43 @@ export default function DashboardScreen({ navigation }) {
     if (!refreshing) setLoadingPaths(true);
 
     try {
-      // 1. Atualiza Nome do Perfil
+      // 1. Carregar Nome do Perfil (Atualizado)
       const storedProfile = await AsyncStorage.getItem("@App:profile");
       if (storedProfile) {
         const profileData = JSON.parse(storedProfile);
         if (profileData.name) setDisplayName(profileData.name);
       }
 
-      // 2. Carregar IDs de trilhas do utilizador atual (Lógica Segura)
+      // 2. Carregar a lista de IDs de trilhas "Meus"
       let myPathIds = [];
       if (user && user.email) {
+        // Normaliza o email para garantir consistência na chave
         const safeEmail = user.email.toLowerCase().trim();
         const storedIds = await AsyncStorage.getItem(
           `@App:myPathIds:${safeEmail}`
         );
         myPathIds = storedIds ? JSON.parse(storedIds) : [];
-        console.log(
-          "Dashboard - Carregando trilhas para:",
-          safeEmail,
-          myPathIds
-        );
+        console.log("Dashboard - Meus IDs:", myPathIds);
       }
 
-      // 3. API: Buscar todas as Trilhas
+      // 3. Buscar TODAS as trilhas da API
       const response = await api.get("/api/v1/learning-paths");
-      const apiPaths = response.data?.content || [];
+      // Suporte para resposta paginada do Spring (.content) ou lista direta
+      const apiPaths = response.data?.content || response.data || [];
 
-      // 4. Filtrar apenas as trilhas deste utilizador
-      const myPaths = apiPaths.filter((path) =>
-        myPathIds.includes(path.idTrilha)
-      );
+      // 4. Filtrar: Mostrar apenas as trilhas que estão na minha lista local
+      const myPaths = apiPaths.filter((path) => {
+        // Converte tudo para String para evitar erro de comparação (15 vs "15")
+        const pId = String(path.idTrilha || path.id || path.trilhaId);
+        return myPathIds.map(String).includes(pId);
+      });
 
-      // 5. Processar progresso para cada trilha filtrada
+      // 5. Calcular o progresso visual para cada trilha
       const enrichedPaths = await Promise.all(
         myPaths.map(async (path) => {
+          const pId = path.idTrilha || path.id || path.trilhaId;
+
+          // Se ainda não está pronta, retorna status de processamento
           if (path.status !== "CONCLUIDA") {
             return {
               ...path,
@@ -231,9 +225,11 @@ export default function DashboardScreen({ navigation }) {
           }
 
           try {
+            // Calcula total de passos do JSON da IA
             let totalSteps = 0;
             if (path.dadosJsonIA) {
               let raw = path.dadosJsonIA;
+              // Fallback para string JSON (caso o backend mande string)
               if (typeof raw === "string") {
                 raw = raw
                   .replace(/```json/g, "")
@@ -243,18 +239,30 @@ export default function DashboardScreen({ navigation }) {
                   raw = JSON.parse(raw);
                 } catch (e) {}
               }
-              if (Array.isArray(raw)) totalSteps = raw.length;
-              else if (typeof raw === "object") {
-                const list = raw.steps || raw.trilha || raw.passos || [];
+
+              if (Array.isArray(raw)) {
+                totalSteps = raw.length;
+              } else if (typeof raw === "object") {
+                // Procura pela lista em várias chaves possíveis
+                const list =
+                  raw.steps ||
+                  raw.trilha ||
+                  raw.passos ||
+                  raw.path ||
+                  raw.data ||
+                  [];
                 totalSteps = list.length;
               }
             }
 
+            // Lê os passos marcados como "feitos" no AsyncStorage
             const savedProgress = await AsyncStorage.getItem(
-              `@PathProgress:${path.idTrilha}`
+              `@PathProgress:${pId}`
             );
             const completedSet = savedProgress ? JSON.parse(savedProgress) : [];
             const completedCount = completedSet.length;
+
+            // Calcula porcentagem (0 a 100)
             const percent =
               totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
 
@@ -269,14 +277,21 @@ export default function DashboardScreen({ navigation }) {
               displayStatus: statusText,
             };
           } catch (e) {
-            return { ...path, userProgress: 0, displayStatus: "Erro ao ler" };
+            return {
+              ...path,
+              userProgress: 0,
+              displayStatus: "Erro ao calcular",
+            };
           }
         })
       );
 
+      // Ordena para mostrar as mais recentes primeiro (assumindo ID incremental)
+      enrichedPaths.sort((a, b) => (b.idTrilha || 0) - (a.idTrilha || 0));
+
       setRecentPaths(enrichedPaths);
     } catch (error) {
-      console.log("Erro ao carregar dados:", error);
+      console.log("Erro ao carregar dashboard:", error);
     } finally {
       setLoadingPaths(false);
       setRefreshing(false);
@@ -284,7 +299,7 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    showAlert("Sair", "Tem a certeza que deseja desconectar?", {
+    showAlert("Sair", "Tem certeza que deseja desconectar?", {
       text: "Sair",
       style: "destructive",
       cancelText: "Cancelar",
@@ -293,10 +308,10 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const getStatusColor = (path) => {
-    if (path.status === "PROCESSANDO") return "#F59E0B";
-    if (path.userProgress === 100) return theme.colors.success || "#10B981";
-    if (path.userProgress > 0) return theme.colors.primary;
-    return theme.colors.mutedForeground;
+    if (path.status === "PROCESSANDO") return "#F59E0B"; // Laranja
+    if (path.userProgress === 100) return theme.colors.success || "#10B981"; // Verde
+    if (path.userProgress > 0) return theme.colors.primary; // Azul
+    return theme.colors.mutedForeground; // Cinza
   };
 
   return (
@@ -306,7 +321,6 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.greetingLabel}>Bem-vindo,</Text>
           <Text style={styles.username}>{displayName}</Text>
         </View>
-
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.aboutButton}
@@ -346,7 +360,7 @@ export default function DashboardScreen({ navigation }) {
                 Nova Trilha de Carreira
               </Text>
               <Text style={styles.primaryCardSubtitle}>
-                Use IA para planear o seu futuro
+                Use IA para planejar seu futuro
               </Text>
             </View>
             <Svg
@@ -399,14 +413,15 @@ export default function DashboardScreen({ navigation }) {
         ) : recentPaths.length > 0 ? (
           recentPaths.map((path) => (
             <TouchableOpacity
-              key={path.idTrilha}
+              key={path.idTrilha || path.id}
               style={styles.pathCard}
               onPress={() => {
+                const pId = path.idTrilha || path.id || path.trilhaId;
                 if (
                   path.status === "PROCESSANDO" ||
                   path.status === "PENDENTE"
                 ) {
-                  navigation.navigate("Processing", { pathId: path.idTrilha });
+                  navigation.navigate("Processing", { pathId: pId });
                 } else {
                   navigation.navigate("LearningPath", { pathData: path });
                 }
@@ -452,8 +467,8 @@ export default function DashboardScreen({ navigation }) {
                 textAlign: "center",
               }}
             >
-              Ainda não gerou nenhuma trilha.
-              {"\n"}Comece agora!
+              Você ainda não gerou nenhuma trilha.
+              {"\n"}Toque no cartão azul para começar!
             </Text>
           </View>
         )}

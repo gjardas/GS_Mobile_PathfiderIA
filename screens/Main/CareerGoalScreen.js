@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
+} from "react-native"; // Removido Alert nativo
 import Svg, { Path } from "react-native-svg";
 import api from "../../api/apiService";
 import { useAlert } from "../../context/AlertContext";
@@ -84,6 +84,12 @@ const createStyles = (theme) =>
       fontSize: 18,
       fontWeight: "bold",
     },
+    loadingText: {
+      marginTop: 12,
+      textAlign: "center",
+      color: theme.colors.mutedForeground,
+      fontSize: 12,
+    },
   });
 
 export default function CareerGoalScreen({ navigation }) {
@@ -94,6 +100,26 @@ export default function CareerGoalScreen({ navigation }) {
 
   const [goal, setGoal] = useState("");
   const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  // Função auxiliar: Busca ID e garante que é um NÚMERO
+  const fetchLatestId = async () => {
+    try {
+      const response = await api.get("/api/v1/learning-paths?size=1");
+      const content = response.data?.content || response.data;
+      const latest =
+        Array.isArray(content) && content.length > 0 ? content[0] : null;
+
+      // Tenta extrair ID de qualquer campo possível
+      const idVal = latest
+        ? latest.idTrilha || latest.id || latest.trilhaId
+        : 0;
+      return Number(idVal); // Força conversão para número para comparação correta
+    } catch (error) {
+      console.log("Erro ao buscar último ID:", error.message);
+      return 0;
+    }
+  };
 
   const handleGenerate = async () => {
     if (!goal.trim()) {
@@ -104,9 +130,14 @@ export default function CareerGoalScreen({ navigation }) {
     }
 
     setLoading(true);
-    console.log("CONSOLE LOG: Iniciando fluxo de criação...");
+    setStatusMessage("Conectando ao servidor...");
+    console.log("--- INÍCIO DO FLUXO DE CRIAÇÃO ---");
 
     try {
+      // 1. Pega o ID atual (Snapshot antes de criar)
+      const previousId = await fetchLatestId();
+      console.log(`DEBUG: ID Atual (Antes do POST): ${previousId}`);
+
       const profileJson = await AsyncStorage.getItem("@App:profile");
       const profile = profileJson ? JSON.parse(profileJson) : {};
       const currentRole = profile.jobTitle || "Profissional em transição";
@@ -116,62 +147,76 @@ export default function CareerGoalScreen({ navigation }) {
         tituloObjetivo: goal,
       };
 
-      // 1. Envia requisição POST para criar
+      // 2. Envia POST
       const responsePost = await api.post("/api/v1/learning-paths", payload);
+      console.log(`DEBUG: POST Status: ${responsePost.status}`);
 
       if ([200, 201, 202].includes(responsePost.status)) {
-        console.log("CONSOLE LOG: Buscando ID da trilha recém-criada...");
-        // Aguarda o banco processar
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setStatusMessage("Aguardando IA...");
 
-        try {
-          // 2. Busca a última trilha criada (GET)
-          const responseGet = await api.get("/api/v1/learning-paths?size=1");
-          const latestPath = responseGet.data?.content
-            ? responseGet.data.content[0]
-            : null;
+        // 3. Polling para detectar Novo ID (que seja MAIOR que o previousId)
+        let foundId = null;
+        let attempts = 0;
+        const maxAttempts = 10; // Aumentado para dar mais tempo (~20s)
 
-          if (latestPath && latestPath.idTrilha) {
-            console.log("CONSOLE LOG: ID encontrado:", latestPath.idTrilha);
+        while (attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Espera 2s entre tentativas
 
-            // 3. VINCULAR AO USUÁRIO (Salvar ID localmente)
-            if (user && user.email) {
-              const safeEmail = user.email.toLowerCase().trim();
-              const storageKey = `@App:myPathIds:${safeEmail}`;
-
-              const storedIds = await AsyncStorage.getItem(storageKey);
-              const myIds = storedIds ? JSON.parse(storedIds) : [];
-
-              // Adiciona ID se não existir
-              if (!myIds.includes(latestPath.idTrilha)) {
-                myIds.push(latestPath.idTrilha);
-                await AsyncStorage.setItem(storageKey, JSON.stringify(myIds));
-                console.log("CONSOLE LOG: ID vinculado ao usuário:", safeEmail);
-              }
-            }
-
-            // 4. Navega para monitorização
-            navigation.replace("Processing", { pathId: latestPath.idTrilha });
-          } else {
-            // Fallback para Demo
-            navigation.replace("Processing", { isDemo: true });
-          }
-        } catch (getError) {
-          console.log("Erro ao buscar ID:", getError);
-          showAlert(
-            "Processamento Iniciado",
-            "Sua trilha está sendo gerada! Você poderá vê-la na lista em breve.",
-            { onPress: () => navigation.navigate("Dashboard") }
+          const currentId = await fetchLatestId();
+          console.log(
+            `DEBUG: Tentativa ${
+              attempts + 1
+            }: ID no banco = ${currentId} (Anterior: ${previousId})`
           );
+
+          // COMPARAÇÃO NÚMERICA: Se o ID atual for maior que o anterior, é o novo!
+          if (currentId > previousId) {
+            foundId = currentId;
+            break;
+          }
+
+          attempts++;
+        }
+
+        // Se não achou novo, mas o POST deu 200, tenta usar (previousId + 1) como fallback
+        const finalId = foundId || (previousId > 0 ? previousId + 1 : null);
+
+        if (finalId) {
+          console.log("DEBUG: SUCESSO! ID Final usado:", finalId);
+
+          // 4. SALVA O ID NA LISTA DO UTILIZADOR (Para aparecer no Dashboard)
+          if (user && user.email) {
+            const safeEmail = user.email.toLowerCase().trim();
+            const storageKey = `@App:myPathIds:${safeEmail}`;
+
+            const storedIds = await AsyncStorage.getItem(storageKey);
+            let myIds = storedIds ? JSON.parse(storedIds) : [];
+
+            // Salva como String para padronizar
+            const idString = String(finalId);
+
+            if (!myIds.includes(idString)) {
+              myIds.push(idString);
+              await AsyncStorage.setItem(storageKey, JSON.stringify(myIds));
+              console.log("DEBUG: ID salvo localmente na lista de:", safeEmail);
+              console.log("DEBUG: Lista atualizada:", myIds);
+            }
+          }
+
+          navigation.replace("Processing", { pathId: finalId });
+        } else {
+          console.log("DEBUG: FALHA. Nenhum ID novo detectado. Ativando Demo.");
+          navigation.replace("Processing", { isDemo: true });
         }
       }
     } catch (error) {
-      console.error("CONSOLE LOG ERRO:", error);
+      console.error("DEBUG ERRO:", error);
       showAlert("Erro", "Não foi possível conectar com o servidor.", {
         style: "destructive",
       });
     } finally {
       setLoading(false);
+      setStatusMessage("");
     }
   };
 
@@ -242,6 +287,8 @@ export default function CareerGoalScreen({ navigation }) {
           </>
         )}
       </TouchableOpacity>
+
+      {loading && <Text style={styles.loadingText}>{statusMessage}</Text>}
     </View>
   );
 }

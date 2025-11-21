@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,14 +8,12 @@ import {
   View,
 } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
+import { useAlert } from "../../context/AlertContext";
 import { useTheme } from "../../context/ThemeContext";
 
 const createStyles = (theme) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
+    container: { flex: 1, backgroundColor: theme.colors.background },
     header: {
       padding: theme.spacing.l,
       paddingTop: 60,
@@ -35,7 +32,6 @@ const createStyles = (theme) =>
       color: theme.colors.primaryForeground,
       opacity: 0.8,
     },
-    // Barra de Progresso
     progressContainer: {
       marginTop: 16,
       height: 8,
@@ -45,7 +41,7 @@ const createStyles = (theme) =>
     },
     progressBar: {
       height: "100%",
-      backgroundColor: theme.colors.success || "#10B981", // Verde
+      backgroundColor: theme.colors.success || "#10B981",
       borderRadius: 4,
     },
     progressText: {
@@ -54,9 +50,7 @@ const createStyles = (theme) =>
       marginTop: 4,
       textAlign: "right",
     },
-    content: {
-      padding: theme.spacing.l,
-    },
+    content: { padding: theme.spacing.l },
     card: {
       backgroundColor: theme.colors.card,
       borderRadius: theme.spacing.m,
@@ -91,9 +85,7 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.primary,
       borderColor: theme.colors.primary,
     },
-    stepContent: {
-      flex: 1,
-    },
+    stepContent: { flex: 1 },
     stepTitle: {
       fontSize: 16,
       fontWeight: "bold",
@@ -130,11 +122,7 @@ const createStyles = (theme) =>
       marginBottom: theme.spacing.l,
       alignItems: "center",
     },
-    completionText: {
-      color: "#FFFFFF",
-      fontWeight: "bold",
-      fontSize: 16,
-    },
+    completionText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 16 },
     homeButton: {
       marginTop: theme.spacing.m,
       marginBottom: theme.spacing.xl,
@@ -145,28 +133,30 @@ const createStyles = (theme) =>
       borderRadius: theme.spacing.s,
       alignItems: "center",
     },
-    homeButtonText: {
-      color: theme.colors.foreground,
-      fontWeight: "600",
-    },
+    homeButtonText: { color: theme.colors.foreground, fontWeight: "600" },
   });
 
 export default function LearningPathScreen({ navigation, route }) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const { showAlert } = useAlert();
   const { pathData } = route.params || {};
-  const pathId = pathData?.idTrilha || pathData?.id; // ID único para salvar progresso
+
+  // Fallback para ID se vier null (como no log da Demo) para permitir salvar o progresso
+  const pathId = pathData?.idTrilha || pathData?.id || "demo-path-default";
 
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [steps, setSteps] = useState([]);
 
-  // 1. Carregar Passos e Progresso Salvo
   useEffect(() => {
-    // Parseia os dados da IA
     let parsedSteps = [];
     try {
+      console.log("LearningPath - Dados Recebidos:", pathData);
+
       if (pathData?.dadosJsonIA) {
         let rawData = pathData.dadosJsonIA;
+
+        // Limpeza de string markdown se necessário
         if (typeof rawData === "string") {
           rawData = rawData
             .replace(/```json/g, "")
@@ -174,20 +164,31 @@ export default function LearningPathScreen({ navigation, route }) {
             .trim();
           try {
             rawData = JSON.parse(rawData);
-          } catch (e) {}
+          } catch (e) {
+            console.log("Erro parse JSON", e);
+          }
         }
+
+        // Estratégia de Extração baseada no seu log
         if (Array.isArray(rawData)) {
           parsedSteps = rawData;
         } else if (typeof rawData === "object") {
-          parsedSteps = rawData.steps || rawData.trilha || rawData.passos || [];
+          // O seu log mostra que os dados estão em .steps
+          parsedSteps =
+            rawData.steps ||
+            rawData.trilha ||
+            rawData.passos ||
+            rawData.path ||
+            rawData.data ||
+            [];
         }
       }
     } catch (e) {
       console.error(e);
     }
-    setSteps(parsedSteps);
 
-    // Carrega progresso do AsyncStorage
+    console.log("Steps finais:", parsedSteps);
+    setSteps(parsedSteps);
     loadProgress();
   }, [pathId]);
 
@@ -204,7 +205,6 @@ export default function LearningPathScreen({ navigation, route }) {
     }
   };
 
-  // 2. Lógica de Check + Verificação de Conclusão
   const handleCheckStep = async (stepTitle, index) => {
     const newCompleted = new Set(completedSteps);
     const isChecking = !newCompleted.has(index);
@@ -216,22 +216,20 @@ export default function LearningPathScreen({ navigation, route }) {
     }
     setCompletedSteps(newCompleted);
 
-    // Persistência do progresso da trilha
     await AsyncStorage.setItem(
       `@PathProgress:${pathId}`,
       JSON.stringify([...newCompleted])
     );
 
-    // Adiciona Habilidade ao Perfil se marcar
     if (isChecking && stepTitle) {
       updateUserProfile(stepTitle);
     }
 
-    // Verifica Conclusão Total
     if (isChecking && newCompleted.size === steps.length && steps.length > 0) {
-      Alert.alert(
+      showAlert(
         "🎉 Trilha Concluída!",
-        "Parabéns! Você completou todas as etapas desta jornada."
+        "Parabéns! Você completou todas as etapas desta jornada.",
+        { text: "Incrível!" }
       );
     }
   };
@@ -245,7 +243,7 @@ export default function LearningPathScreen({ navigation, route }) {
       if (!profile.skills.includes(skill)) {
         profile.skills.push(skill);
         await AsyncStorage.setItem("@App:profile", JSON.stringify(profile));
-        Alert.alert(
+        showAlert(
           "Skill Desbloqueada! 🔓",
           `"${skill}" foi adicionada ao seu perfil.`
         );
@@ -255,7 +253,6 @@ export default function LearningPathScreen({ navigation, route }) {
     }
   };
 
-  // Cálculos de Progresso
   const totalSteps = steps.length;
   const completedCount = completedSteps.size;
   const progressPercent =
@@ -272,7 +269,6 @@ export default function LearningPathScreen({ navigation, route }) {
           {completedCount} de {totalSteps} etapas concluídas
         </Text>
 
-        {/* Barra de Progresso */}
         <View style={styles.progressContainer}>
           <View
             style={[styles.progressBar, { width: `${progressPercent}%` }]}
@@ -282,7 +278,6 @@ export default function LearningPathScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Banner de Conclusão */}
         {isFullyCompleted && (
           <View style={styles.completionBanner}>
             <Text style={styles.completionText}>
@@ -294,8 +289,9 @@ export default function LearningPathScreen({ navigation, route }) {
         {steps && steps.length > 0 ? (
           steps.map((step, index) => {
             const isDone = completedSteps.has(index);
+            // Prioriza os campos que vimos no log: title, description, type
             const title =
-              step.title || step.titulo || step.nome || "Passo sem título";
+              step.title || step.titulo || step.nome || "Passo " + (index + 1);
 
             return (
               <TouchableOpacity
@@ -352,7 +348,14 @@ export default function LearningPathScreen({ navigation, route }) {
           })
         ) : (
           <View
-            style={[styles.card, { justifyContent: "center", padding: 30 }]}
+            style={[
+              styles.card,
+              {
+                justifyContent: "center",
+                padding: 30,
+                flexDirection: "column",
+              },
+            ]}
           >
             <Text
               style={{
@@ -361,6 +364,15 @@ export default function LearningPathScreen({ navigation, route }) {
               }}
             >
               Nenhuma etapa encontrada.
+            </Text>
+            <Text
+              style={{
+                fontSize: 10,
+                color: theme.colors.border,
+                marginTop: 10,
+              }}
+            >
+              Dados: {JSON.stringify(pathData?.dadosJsonIA)}
             </Text>
           </View>
         )}
