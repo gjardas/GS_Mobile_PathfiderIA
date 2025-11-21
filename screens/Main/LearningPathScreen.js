@@ -142,7 +142,6 @@ export default function LearningPathScreen({ navigation, route }) {
   const { showAlert } = useAlert();
   const { pathData } = route.params || {};
 
-  // Fallback para ID se vier null (como no log da Demo) para permitir salvar o progresso
   const pathId = pathData?.idTrilha || pathData?.id || "demo-path-default";
 
   const [completedSteps, setCompletedSteps] = useState(new Set());
@@ -155,8 +154,6 @@ export default function LearningPathScreen({ navigation, route }) {
 
       if (pathData?.dadosJsonIA) {
         let rawData = pathData.dadosJsonIA;
-
-        // Limpeza de string markdown se necessário
         if (typeof rawData === "string") {
           rawData = rawData
             .replace(/```json/g, "")
@@ -169,11 +166,9 @@ export default function LearningPathScreen({ navigation, route }) {
           }
         }
 
-        // Estratégia de Extração baseada no seu log
         if (Array.isArray(rawData)) {
           parsedSteps = rawData;
         } else if (typeof rawData === "object") {
-          // O seu log mostra que os dados estão em .steps
           parsedSteps =
             rawData.steps ||
             rawData.trilha ||
@@ -289,7 +284,6 @@ export default function LearningPathScreen({ navigation, route }) {
         {steps && steps.length > 0 ? (
           steps.map((step, index) => {
             const isDone = completedSteps.has(index);
-            // Prioriza os campos que vimos no log: title, description, type
             const title =
               step.title || step.titulo || step.nome || "Passo " + (index + 1);
 

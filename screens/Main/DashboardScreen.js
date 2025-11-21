@@ -169,7 +169,6 @@ export default function DashboardScreen({ navigation }) {
     if (!refreshing) setLoadingPaths(true);
 
     try {
-      // 1. BUSCA O NOME REAL NA API (CORREÇÃO DO NOME "USUÁRIO")
       try {
         const profileResponse = await api.get("/api/v1/profile");
         if (profileResponse.data && profileResponse.data.nome) {
@@ -179,7 +178,6 @@ export default function DashboardScreen({ navigation }) {
         console.log("Não foi possível carregar o nome do perfil", profileError);
       }
 
-      // 2. Busca as trilhas na API
       const response = await api.get("/api/v1/learning-paths");
       const apiPaths = response.data?.content || response.data || [];
 
@@ -251,7 +249,6 @@ export default function DashboardScreen({ navigation }) {
         })
       );
 
-      // Ordena por ID decrescente (mais novos primeiro)
       enrichedPaths.sort((a, b) => (b.idTrilha || 0) - (a.idTrilha || 0));
       setRecentPaths(enrichedPaths);
     } catch (error) {

@@ -126,10 +126,7 @@ export default function CareerGoalScreen({ navigation }) {
 
       setStatusMessage("Sincronizando dados...");
 
-      // Aguarda persistência do banco
       await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // ESTRATÉGIA: Buscar a última trilha criada na lista (sem cache local de IDs)
       console.log("Buscando última trilha na lista...");
       const responseList = await api.get(
         "/api/v1/learning-paths?page=0&size=1&sort=id,desc"
@@ -142,8 +139,6 @@ export default function CareerGoalScreen({ navigation }) {
       if (latestPath) {
         const finalId = latestPath.idTrilha || latestPath.id;
         console.log("SUCESSO! ID recuperado da API:", finalId);
-
-        // Navega para o processamento (sem salvar ID no storage)
         navigation.replace("Processing", { pathId: finalId });
       } else {
         throw new Error(

@@ -9,9 +9,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"; // Removido Alert
+} from "react-native";
 import Svg, { Circle, Polygon } from "react-native-svg";
-import { useAlert } from "../../context/AlertContext"; // 1. Importar Hook
+import { useAlert } from "../../context/AlertContext";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -122,7 +122,7 @@ export default function WelcomeScreen() {
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const { signIn, signUp } = useAuth();
-  const { showAlert } = useAlert(); // 2. Usar Hook
+  const { showAlert } = useAlert();
 
   const [activeTab, setActiveTab] = useState("login");
   const [email, setEmail] = useState("");

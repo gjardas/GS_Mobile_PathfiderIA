@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import api from "../../api/ApiService"; // API Service
+import api from "../../api/ApiService";
 import { useAlert } from "../../context/AlertContext";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -132,14 +132,11 @@ export default function ProfileScreen({ navigation }) {
     loadProfileFromApi();
   }, []);
 
-  // 1. Carrega dados do Backend (Oracle)
   const loadProfileFromApi = async () => {
     try {
       setIsFetching(true);
       const response = await api.get("/api/v1/profile");
       const data = response.data;
-
-      // Preenche os estados com os dados reais do banco
       setName(data.nome || "");
       setEmail(data.email || "");
       setJobTitle(data.cargoAtual || "");

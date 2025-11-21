@@ -5,7 +5,7 @@ const createStyles = (theme) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.5)", // Fundo escurecido
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
       justifyContent: "center",
       alignItems: "center",
       padding: 20,
@@ -16,7 +16,6 @@ const createStyles = (theme) =>
       padding: theme.spacing.l,
       width: "100%",
       maxWidth: 340,
-      // Sombra estilo Shadcn
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,

@@ -86,10 +86,8 @@ export default function ProcessingScreen({ navigation, route }) {
       });
     };
 
-    // Polling na LISTA para evitar erro 500 no endpoint de detalhe antigo
     const checkStatus = async () => {
       try {
-        // Busca os 5 últimos (margem de segurança)
         const response = await api.get(
           "/api/v1/learning-paths?page=0&size=5&sort=id,desc"
         );
@@ -120,8 +118,6 @@ export default function ProcessingScreen({ navigation, route }) {
 
     checkStatus();
     pollingRef.current = setInterval(checkStatus, 3000);
-
-    // Timeout removido para garantir persistência de dados reais da API
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);

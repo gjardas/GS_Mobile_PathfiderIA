@@ -30,10 +30,8 @@ export const AuthProvider = ({ children }) => {
     loadStorageData();
   }, []);
 
-  // --- LOGIN ---
   async function signIn(email, password) {
     try {
-      // CORREÇÃO: Forçar email minúsculo
       const normalizedEmail = email.toLowerCase().trim();
 
       const response = await api.post("/auth/login", {
@@ -61,10 +59,8 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // --- REGISTRO ---
   async function signUp(name, email, password) {
     try {
-      // CORREÇÃO: Forçar email minúsculo
       const normalizedEmail = email.toLowerCase().trim();
 
       await api.post("/auth/register", {

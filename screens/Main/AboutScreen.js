@@ -91,7 +91,7 @@ const createStyles = (theme) =>
       marginBottom: 8,
       paddingBottom: 8,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.muted, // Linha divisória sutil
+      borderBottomColor: theme.colors.muted,
     },
   });
 
@@ -101,7 +101,6 @@ export default function AboutScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header com botão Voltar */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -124,18 +123,14 @@ export default function AboutScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Logo do App */}
         <View style={styles.logoBox}>
           <Text style={styles.logoText}>P</Text>
         </View>
 
         <Text style={styles.appName}>Pathfinder AI</Text>
         <Text style={styles.version}>Versão 1.0.0 (Global Solution)</Text>
-
-        {/* Card de Informações Técnicas */}
         <View style={styles.card}>
           <Text style={styles.label}>Hash do Commit</Text>
-          {/* Este é o hash fictício exigido na entrega. Em produção, viria do CI/CD */}
           <Text style={[styles.value, styles.mono]}>
             94e51a6fbb08b4c0e029c8e96078b419dbe77b8b
           </Text>
