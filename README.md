@@ -19,7 +19,7 @@ Guilherme Jardim RM556814 Frontend Mobile & Integração
 
 📺 Vídeo de Demonstração
 
-🔗 https://www.youtube.com/watch?v=k8RhODEm_QM
+🔗 npm install -g eas-cli
 
 O vídeo deve demonstrar:
 

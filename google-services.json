@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "453718670064",
+    "project_id": "pathfinderai-fb4bb",
+    "storage_bucket": "pathfinderai-fb4bb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453718670064:android:f74a686f5cc0c07a91e035",
+        "android_client_info": {
+          "package_name": "com.gjardas.pathfinderai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPJZ7r65rMMNRV3_NhH3fWxurSyVSaD7k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
