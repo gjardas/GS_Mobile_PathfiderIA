@@ -132,7 +132,7 @@ export default function AboutScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.label}>Hash do Commit</Text>
           <Text style={[styles.value, styles.mono]}>
-            94e51a6fbb08b4c0e029c8e96078b419dbe77b8b
+            c1a0dc16fcbce2ccf20a4dae49d9807fb5d0a298
           </Text>
 
           <Text style={styles.label}>Disciplina</Text>
