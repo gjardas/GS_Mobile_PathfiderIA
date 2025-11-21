@@ -1,196 +1,219 @@
-🚀 Pathfinder AI - Global Solution 2025
+🚀 Pathfinder AI — Global Solution FIAP 2025
+O GPS de Carreira Inteligente para Requalificação Profissional na Era da IA
 
-"O GPS de Carreira Inteligente para Requalificação Profissional na Era da IA"
+O Pathfinder AI é uma solução composta por API Java + Aplicativo Mobile React Native, projetada para auxiliar profissionais em transições de carreira.
+Utilizando IA Generativa (Google Gemini), o sistema analisa:
 
-📋 Sobre o Projeto
+Ponto A → Perfil atual, habilidades e experiência
 
-O Pathfinder AI é uma solução mobile inovadora desenvolvida para enfrentar os desafios do futuro do trabalho. Em um mundo onde as competências mudam rapidamente, nosso aplicativo atua como um mentor de carreira inteligente.
+Ponto B → Objetivo profissional
 
-Utilizando Inteligência Artificial Generativa, o app analisa o perfil atual do usuário (Ponto A) e seu objetivo de carreira (Ponto B), traçando uma "rota" personalizada de aprendizado. Esta rota não é apenas uma lista de cursos, mas um plano de ação dinâmico gerado em tempo real para preencher gaps de habilidades.
+Saída → Trilha de aprendizado personalizada e evolutiva
 
-👥 Equipe de Desenvolvimento
+A geração da trilha ocorre de forma assíncrona via RabbitMQ, com consulta periódica (polling) no app.
 
-Nome Completo
+👨‍💻 Integrantes do Grupo
+Nome Completo RM Função Principal
+Fernando Pacheco RM555317 Backend Java & Cloud
+Guilherme Jardim RM556814 Frontend Mobile & Integração
 
-RM
+📺 Vídeo de Demonstração
 
-Função Principal
+🔗 https://www.youtube.com/watch?v=k8RhODEm_QM
 
-Turma
+O vídeo deve demonstrar:
 
-[Seu Nome Completo]
+Autenticação e navegação protegida
 
-RMXXXXX
+CRUD de Perfil (Nome, Cargo, Skills)
 
-Mobile & Integração
+Criação e consulta de trilhas
 
-2TDSX
+Geração assíncrona via RabbitMQ
 
-[Nome Integrante 2]
+Polling de status no app
 
-RMXXXXX
+Visualização das etapas da trilha
 
-Backend Java & IA
+💡 Funcionalidades e Requisitos Atendidos
+✔️ 1. Telas e Navegação (7 Telas)
 
-2TDSX
+O aplicativo possui navegação completa (pública/autenticada):
 
-[Nome Integrante 3]
+WelcomeScreen — Login e Registro
 
-RMXXXXX
+DashboardScreen — Home
 
-Banco de Dados & Cloud
+ProfileScreen — Edição do Perfil e Skills
 
-2TDSX
+CareerGoalScreen — Definição de Objetivo Profissional
 
-📺 Demonstração
+ProcessingScreen — Status da geração
 
-🎥 CLIQUE AQUI PARA ASSISTIR AO VÍDEO DE DEMONSTRAÇÃO NO YOUTUBE
+LearningPathScreen — Visualização da Trilha Gerada
 
-(O vídeo demonstra o fluxo completo: Autenticação, CRUD de Perfil, Integração com IA via RabbitMQ e Gamificação da Trilha)
+AboutScreen — Informações e Hash do Commit
 
-📱 Funcionalidades Principais (Mobile)
+✔️ 2. CRUD com API (Java)
 
-O aplicativo foi construído com React Native (Expo) e atende a todos os requisitos da disciplina de Mobile Application Development:
+Integração total via Axios com a API:
 
-1. 🔐 Autenticação Segura
+POST /learning-paths → Criar trilha
 
-Login e Registro: Integração direta com endpoints Java Spring Boot (/auth/login, /auth/register).
+GET /learning-paths → Listar trilhas
 
-Segurança: Validação de senha forte no front-end e armazenamento seguro de Token JWT via AsyncStorage.
+GET /profile → Ler perfil
 
-Sessão Persistente: O usuário permanece logado mesmo após fechar o app.
+PUT /profile → Atualizar nome, cargo e skills
 
-2. 👤 Gestão de Perfil (CRUD Completo)
+DELETE /learning-paths/{id} → Excluir trilha
 
-Create (Adicionar): Novas habilidades (tags) ao perfil.
+Todos os dados são persistidos via API (Single Source of Truth).
 
-Read (Consultar): Visualização dos dados cadastrais e estatísticas.
+✔️ 3. Autenticação e Segurança (JWT)
 
-Update (Editar): Atualização de cargo e informações pessoais.
-
-Delete (Remover): Exclusão de habilidades obsoletas.
-
-3. 🧠 Geração de Trilha com IA (Core)
-
-Fluxo Assíncrono: O app envia a solicitação e monitora o processamento em tempo real (Polling).
-
-Integração RabbitMQ: A comunicação com a IA é desacoplada via mensageria no backend.
-
-Resultado Dinâmico: Renderização de um JSON complexo gerado pela IA em uma interface amigável de cards.
-
-4. 🎮 Gamificação
-
-Checklist Interativo: O usuário pode marcar etapas como concluídas.
-
-Recompensa: Ao concluir uma etapa, a habilidade aprendida é automaticamente adicionada ao perfil do usuário.
-
-🛠️ Arquitetura e Tecnologias
-
-A solução segue uma arquitetura moderna baseada em microsserviços e eventos.
-
-Frontend (Mobile)
-
-Framework: React Native com Expo.
-
-Linguagem: JavaScript (ES6+).
-
-Navegação: React Navigation (Stack).
-
-Comunicação: Axios (HTTP Client).
-
-Estado Global: Context API (AuthContext, ThemeContext).
-
-Estilização: StyleSheet com Design System personalizado (baseado em Shadcn UI).
-
-Assets: SVG Nativo (react-native-svg).
-
-Backend (Integrado)
-
-API: Java Spring Boot 3.
-
-Segurança: Spring Security + JWT.
-
-Banco de Dados: Oracle Database (PL/SQL, Procedures).
-
-Mensageria: RabbitMQ (para processamento assíncrono da IA).
-
-IA: Integração com OpenAI/Gemini API.
-
-🔌 Endpoints Consumidos
-
-O aplicativo se comunica com a API RESTful através dos seguintes endpoints principais:
-
-Método
-
-Endpoint
-
-Descrição
-
-POST
-
-/auth/register
-
-Criação de nova conta de usuário.
-
-POST
+Implementação completa:
 
 /auth/login
 
-Autenticação e recebimento do Token JWT.
+/auth/register
 
-GET
+Tokens gerados e validados com Spring Security
 
-/api/v1/learning-paths
+Logout limpa sessão local
 
-Lista o histórico de trilhas do usuário.
+✔️ 4. Estilização
 
-POST
+Identidade visual profissional (tema azul/escuro)
 
-/api/v1/learning-paths
+UI consistente baseada em um mini design system
 
-Solicita a geração de uma nova trilha (envia para fila).
+Contexto de tema para cores, tipografia e componentes
 
-GET
+✔️ 5. Arquitetura do Código
 
-/api/v1/learning-paths/{id}
+Backend
 
-Consulta o status e o resultado da geração da trilha.
+Camadas organizadas: controller, service, repository, config
 
-📲 Como Executar o Projeto
+Padrões DDD e boas práticas
 
-Pré-requisitos
+RabbitMQ para geração assíncrona
 
-Node.js (v16 ou superior).
+Frontend
 
-Expo CLI instalado globalmente: npm install -g expo-cli.
+Estrutura modular:
 
-Dispositivo físico (com App Expo Go) ou Emulador (Android Studio/Xcode).
+screens/
 
-Backend Java rodando (localmente na porta 8080 ou na nuvem).
+api/
 
-Passo a Passo
+context/
 
-Clone o repositório:
+components/
 
-git clone [https://github.com/seu-usuario/pathfinder-ai-mobile.git](https://github.com/seu-usuario/pathfinder-ai-mobile.git)
-cd pathfinder-ai-mobile
+ESLint + padrões de formatação
 
-Instale as dependências:
+🛠 Arquitetura da Solução
+🔧 Backend — API REST em Java
+Categoria Tecnologia Finalidade
+Framework Spring Boot 3, Java 17 API principal
+IA Generativa Spring AI (Google Gemini) Criação de trilhas
+Banco de Dados Oracle Database + JPA + PL/SQL Persistência
+Mensageria RabbitMQ (Spring AMQP) Processamento assíncrono
+📱 Frontend — Aplicativo Mobile
+Categoria Tecnologia Uso
+Framework React Native (Expo) App Mobile
+HTTP Client Axios Integração API
+Navegação React Navigation Rotas e telas
+Estado Context API Autenticação e Tema
+⚙️ Como Executar o Projeto (Ambiente Local)
+1️⃣ Subir Infraestrutura com Docker
 
+Na pasta do backend (onde está docker-compose.yml):
+
+docker-compose up -d
+
+Isso provisiona:
+
+Oracle Database
+
+RabbitMQ
+
+Painel de gerenciamento do RabbitMQ
+
+2️⃣ Configurar e Executar o Backend (Java API)
+Configurar credenciais
+
+Edite:
+
+src/main/resources/application.yml
+
+Incluindo:
+
+Key da Google Gemini
+
+Credenciais Oracle
+
+Configurações do RabbitMQ
+
+Criar estruturas no banco
+
+Execute no Oracle:
+
+gs_bd.sql
+
+Rodar o Backend
+mvn clean install
+mvn spring-boot:run
+
+3️⃣ Executar o Aplicativo Mobile (React Native)
+Instalar dependências
 npm install
 
-Configure o IP da API:
+Configurar URL da API
 
-Abra o arquivo api/apiService.js.
+Edite:
 
-Altere a constante API_BASE_URL para o IP da sua máquina (ex: http://192.168.1.15:8080) ou 10.0.2.2 para emulador Android.
+api/ApiService.js
 
-Execute o projeto:
+E configure:
 
-npx expo start
+Emulador Android → http://10.0.2.2:8080
 
-Pressione a para abrir no Android.
+Celular físico → IP da máquina na rede local
 
-Pressione i para abrir no iOS.
+Rodar o App
+npx expo start -c
 
-Ou leia o QR Code com o celular.
+Abra com:
+
+App Expo Go
+
+Ou emulador Android/iOS
+
+🧩 Estrutura de Pastas (Resumo)
+/backend
+├── src/main/java
+├── src/main/resources
+└── docker-compose.yml
+
+/frontend
+├── api/
+├── screens/
+├── components/
+├── context/
+└── App.js
+
+📄 Licença
+
+Este projeto é parte da Global Solution FIAP 2025.
+Uso educacional.
+
+💬 Contato
+
+Fernando Pacheco — Backend
+
+Guilherme Jardim — Mobile & Integração
+
+Se quiser a versão em inglês, com badges ou com instruções mais completas, posso gerar também!
