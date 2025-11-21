@@ -1,219 +1,256 @@
-🚀 Pathfinder AI — Global Solution FIAP 2025
-O GPS de Carreira Inteligente para Requalificação Profissional na Era da IA
+# 🚀 Pathfinder AI — Global Solution FIAP 2025
 
-O Pathfinder AI é uma solução composta por API Java + Aplicativo Mobile React Native, projetada para auxiliar profissionais em transições de carreira.
-Utilizando IA Generativa (Google Gemini), o sistema analisa:
+### O GPS de Carreira Inteligente para Requalificação Profissional na Era da IA
 
-Ponto A → Perfil atual, habilidades e experiência
+O **Pathfinder AI** é uma solução composta por **API Java + Aplicativo Mobile React Native** desenvolvida para auxiliar profissionais em transição e requalificação de carreira.
 
-Ponto B → Objetivo profissional
+Baseado em **IA Generativa (Google Gemini)**, o sistema identifica:
 
-Saída → Trilha de aprendizado personalizada e evolutiva
+- **Ponto A** → Perfil atual, habilidades e experiências
+- **Ponto B** → Objetivo profissional
+- **Saída** → Trilha de aprendizado personalizada e evolutiva
 
-A geração da trilha ocorre de forma assíncrona via RabbitMQ, com consulta periódica (polling) no app.
+A geração das trilhas ocorre de forma **assíncrona via RabbitMQ**, enquanto o aplicativo realiza **polling** para atualizar o status.
 
-👨‍💻 Integrantes do Grupo
-Nome Completo RM Função Principal
-Fernando Pacheco RM555317 Backend Java & Cloud
-Guilherme Jardim RM556814 Frontend Mobile & Integração
+---
 
-📺 Vídeo de Demonstração
+## 👨‍💻 Integrantes do Grupo
 
-🔗 npm install -g eas-cli
+| Nome Completo    | RM       | Função Principal             |
+| ---------------- | -------- | ---------------------------- |
+| Fernando Pacheco | RM555317 | Backend Java & Cloud         |
+| Guilherme Jardim | RM556814 | Frontend Mobile & Integração |
 
-O vídeo deve demonstrar:
+---
 
-Autenticação e navegação protegida
+## 📺 Vídeo de Demonstração
 
-CRUD de Perfil (Nome, Cargo, Skills)
+🔗 [https://www.youtube.com/watch?v=k8RhODEm_QM&feature=youtu.be](https://www.youtube.com/watch?v=k8RhODEm_QM&feature=youtu.be)
 
-Criação e consulta de trilhas
+---
 
-Geração assíncrona via RabbitMQ
+# 💡 Funcionalidades e Requisitos Atendidos
 
-Polling de status no app
+## ✔️ 1. Telas e Navegação (7 Telas)
 
-Visualização das etapas da trilha
+O aplicativo conta com navegação completa entre telas públicas e autenticadas:
 
-💡 Funcionalidades e Requisitos Atendidos
-✔️ 1. Telas e Navegação (7 Telas)
+- **WelcomeScreen** — Login e Registro
+- **DashboardScreen** — Home
+- **ProfileScreen** — Edição de Perfil e Skills
+- **CareerGoalScreen** — Definição do Objetivo Profissional
+- **ProcessingScreen** — Acompanhamento de geração
+- **LearningPathScreen** — Visualização da trilha gerada
+- **AboutScreen** — Informações e hash do commit
 
-O aplicativo possui navegação completa (pública/autenticada):
+---
 
-WelcomeScreen — Login e Registro
+## ✔️ 2. CRUD com API (Java)
 
-DashboardScreen — Home
+Integração total com a API via Axios:
 
-ProfileScreen — Edição do Perfil e Skills
+- `POST /learning-paths` — Criar trilha
+- `GET /learning-paths` — Listar trilhas
+- `GET /profile` — Ler perfil do usuário
+- `PUT /profile` — Atualizar nome, cargo e skills
+- `DELETE /learning-paths/{id}` — Excluir trilha
 
-CareerGoalScreen — Definição de Objetivo Profissional
+Toda a persistência é feita pelo backend (**Single Source of Truth**).
 
-ProcessingScreen — Status da geração
+---
 
-LearningPathScreen — Visualização da Trilha Gerada
+## ✔️ 3. Autenticação e Segurança (JWT)
 
-AboutScreen — Informações e Hash do Commit
+Sistema autenticado com:
 
-✔️ 2. CRUD com API (Java)
+- `POST /auth/login`
+- `POST /auth/register`
+- Tokens JWT via Spring Security
+- Logout limpa token salvo no app
 
-Integração total via Axios com a API:
+---
 
-POST /learning-paths → Criar trilha
+## ✔️ 4. Estilização
 
-GET /learning-paths → Listar trilhas
+- Design System próprio
+- Tema azul/escuro
+- Componentes personalizados
+- Context API para tema e tipografia
 
-GET /profile → Ler perfil
+---
 
-PUT /profile → Atualizar nome, cargo e skills
+## ✔️ 5. Arquitetura do Código
 
-DELETE /learning-paths/{id} → Excluir trilha
+### 🔧 Backend (Java)
 
-Todos os dados são persistidos via API (Single Source of Truth).
+Organizado em camadas:
 
-✔️ 3. Autenticação e Segurança (JWT)
+```
+controller/
+service/
+repository/
+config/
+```
 
-Implementação completa:
+- Boas práticas de DDD
+- Spring AI (Google Gemini)
+- RabbitMQ para geração assíncrona
+- Oracle Database + JPA + PL/SQL
 
-/auth/login
+### 📱 Frontend (React Native)
 
-/auth/register
+Estrutura modular e organizada:
 
-Tokens gerados e validados com Spring Security
-
-Logout limpa sessão local
-
-✔️ 4. Estilização
-
-Identidade visual profissional (tema azul/escuro)
-
-UI consistente baseada em um mini design system
-
-Contexto de tema para cores, tipografia e componentes
-
-✔️ 5. Arquitetura do Código
-
-Backend
-
-Camadas organizadas: controller, service, repository, config
-
-Padrões DDD e boas práticas
-
-RabbitMQ para geração assíncrona
-
-Frontend
-
-Estrutura modular:
-
+```
 screens/
-
-api/
-
-context/
-
 components/
+api/
+context/
+App.js
+```
 
-ESLint + padrões de formatação
+- React Navigation
+- Axios
+- Context API
+- ESLint configurado
 
-🛠 Arquitetura da Solução
-🔧 Backend — API REST em Java
-Categoria Tecnologia Finalidade
-Framework Spring Boot 3, Java 17 API principal
-IA Generativa Spring AI (Google Gemini) Criação de trilhas
-Banco de Dados Oracle Database + JPA + PL/SQL Persistência
-Mensageria RabbitMQ (Spring AMQP) Processamento assíncrono
-📱 Frontend — Aplicativo Mobile
-Categoria Tecnologia Uso
-Framework React Native (Expo) App Mobile
-HTTP Client Axios Integração API
-Navegação React Navigation Rotas e telas
-Estado Context API Autenticação e Tema
-⚙️ Como Executar o Projeto (Ambiente Local)
-1️⃣ Subir Infraestrutura com Docker
+---
 
-Na pasta do backend (onde está docker-compose.yml):
+# 🛠 Arquitetura da Solução
 
+## 🔧 Backend — API REST em Java
+
+| Categoria      | Tecnologia                | Uso                      |
+| -------------- | ------------------------- | ------------------------ |
+| Framework      | Spring Boot 3 (Java 17)   | API principal            |
+| IA Generativa  | Spring AI (Google Gemini) | Criação das trilhas      |
+| Banco de Dados | Oracle Database + JPA     | Persistência             |
+| Mensageria     | RabbitMQ                  | Processamento assíncrono |
+
+---
+
+## 📱 Frontend — Aplicativo Mobile
+
+| Categoria     | Tecnologia          | Uso                 |
+| ------------- | ------------------- | ------------------- |
+| Framework     | React Native (Expo) | App Mobile          |
+| HTTP Client   | Axios               | Comunicação com API |
+| Navegação     | React Navigation    | Rotas e telas       |
+| Estado Global | Context API         | Autenticação e tema |
+
+---
+
+# ⚙️ Como Executar o Projeto (Ambiente Local)
+
+## 1️⃣ Subir Infraestrutura com Docker
+
+Na pasta `/backend`, execute:
+
+```bash
 docker-compose up -d
+```
 
-Isso provisiona:
+Isso sobe:
 
-Oracle Database
+- Oracle Database
+- RabbitMQ
+- Painel do RabbitMQ
 
-RabbitMQ
+---
 
-Painel de gerenciamento do RabbitMQ
+## 2️⃣ Configurar e Executar o Backend
 
-2️⃣ Configurar e Executar o Backend (Java API)
-Configurar credenciais
+### Editar credenciais
 
-Edite:
+No arquivo:
 
+```
 src/main/resources/application.yml
+```
 
-Incluindo:
+Adicionar:
 
-Key da Google Gemini
+- Chave da Google Gemini
+- Credenciais do Oracle
+- Configurações do RabbitMQ
 
-Credenciais Oracle
+### Criar estrutura no Oracle
 
-Configurações do RabbitMQ
+Executar:
 
-Criar estruturas no banco
-
-Execute no Oracle:
-
+```
 gs_bd.sql
+```
 
-Rodar o Backend
+### Rodar API
+
+```bash
 mvn clean install
 mvn spring-boot:run
+```
 
-3️⃣ Executar o Aplicativo Mobile (React Native)
-Instalar dependências
+---
+
+## 3️⃣ Executar o App (React Native)
+
+### Instalar dependências
+
+```bash
 npm install
+```
 
-Configurar URL da API
+### Configurar URL da API
 
-Edite:
+Editar:
 
+```
 api/ApiService.js
+```
 
-E configure:
+Definir:
 
-Emulador Android → http://10.0.2.2:8080
+- Emulador Android → `http://10.0.2.2:8080`
+- Celular físico → IP local da máquina
 
-Celular físico → IP da máquina na rede local
+### Rodar App
 
-Rodar o App
+```bash
 npx expo start -c
+```
 
-Abra com:
+Abrir via:
 
-App Expo Go
+- Expo Go
+- Emulador Android/iOS
 
-Ou emulador Android/iOS
+---
 
-🧩 Estrutura de Pastas (Resumo)
+# 🧩 Estrutura de Pastas
+
+```
 /backend
-├── src/main/java
-├── src/main/resources
-└── docker-compose.yml
+ ├── src/main/java
+ ├── src/main/resources
+ └── docker-compose.yml
 
 /frontend
-├── api/
-├── screens/
-├── components/
-├── context/
-└── App.js
+ ├── api/
+ ├── screens/
+ ├── components/
+ ├── context/
+ └── App.js
+```
 
-📄 Licença
+---
 
-Este projeto é parte da Global Solution FIAP 2025.
-Uso educacional.
+# 📄 Licença
 
-💬 Contato
+Este projeto é parte da **Global Solution FIAP 2025**.
+Uso estritamente educacional.
 
-Fernando Pacheco — Backend
+---
 
-Guilherme Jardim — Mobile & Integração
+# 💬 Contato
 
-Se quiser a versão em inglês, com badges ou com instruções mais completas, posso gerar também!
+- **Fernando Pacheco** — Backend
+- **Guilherme Jardim** — Mobile & Integração
